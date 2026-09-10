@@ -189,9 +189,9 @@ There are two ways to define custom aqueous- or gas-phase chemical mechanisms:
 **Option 1: Edit the default mechanism files**
 
 Modify the default mechanism files in `src/ld_chem/mechanisms/`:
-1. Edit `aq_reactions.dat` and/or `gas_reactions.dat` directly
-2. Add or remove reactions and assign them to group names
-3. Include the group names in a list assigned to the `aq_chemistry` and/or `gas_chemistry` arguments when running a simulation
+1. Edit `aq_reactions.dat` and/or `gas_reactions.dat` directly.
+2. For aqueous reactions, add or remove rows and assign them to group names.
+3. Select aqueous groups with `aq_chemistry`. Gas reactions have no group column; `gas_chemistry=True` enables all rows in the selected `gas_reactions.dat`.
 
 **Option 2: Create custom mechanism files and specify the path**
 
