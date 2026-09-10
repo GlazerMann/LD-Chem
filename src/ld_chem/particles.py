@@ -8,6 +8,7 @@ import sys, warnings
 import numpy as np
 from dataclasses import dataclass
 from typing import Tuple, Callable
+from pathlib import Path
 from part2pop.aerosol_particle import compute_Dwet, compute_mass_h2o
 
 warnings.filterwarnings('ignore')
@@ -22,27 +23,43 @@ class AerosolSpecies:
     molar_mass: float
     surface_tension: float
 
-def retrieve_one_species(name, specdata_path='species_data/',surface_tension=0.072):
-    aero_datafile = specdata_path + 'aero_data.dat'
-    name_in_file = None
-    with open(aero_datafile) as data_file:
-        for line in data_file:
+def retrieve_one_species(name, specdata_path='species_data/', surface_tension=0.072):
+    aero_datafile = Path(specdata_path) / "aero_data.dat"
+    with aero_datafile.open(encoding="utf-8") as data_file:
+        for line_number, line in enumerate(data_file, start=1):
             fields = line.split()
-            if fields and fields[0]==name:
-                name_in_file,density,ions_in_solution,molar_mass,kappa = fields
+            if not fields or fields[0] != name:
+                continue
 
-    if name_in_file is None:
-        raise ValueError(
-            f"Unknown aerosol species '{name}': no matching entry found in "
-            f"{aero_datafile}. Add it to the species data file or check for "
-            f"a typo in aero_spec_names.")
+            if len(fields) != 5:
+                raise ValueError(
+                    f"Malformed aerosol species entry for '{name}' in "
+                    f"{aero_datafile} at line {line_number}: expected 5 fields, "
+                    f"found {len(fields)}."
+                )
 
-    return AerosolSpecies(
-        name=name_in_file,
-        density=float(density),
-        kappa=float(kappa),
-        molar_mass=float(molar_mass.replace('d','e')),
-        surface_tension=surface_tension)
+            name_in_file, density, _ions_in_solution, molar_mass, kappa = fields
+            try:
+                return AerosolSpecies(
+                    name=name_in_file,
+                    density=float(density),
+                    kappa=float(kappa),
+                    molar_mass=float(
+                        molar_mass.replace("D", "E").replace("d", "e")
+                    ),
+                    surface_tension=surface_tension,
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    f"Invalid numeric value in aerosol species '{name}' at "
+                    f"{aero_datafile}:{line_number}."
+                ) from exc
+
+    raise ValueError(
+        f"Unknown aerosol species '{name}': no matching entry found in "
+        f"{aero_datafile}. Add it to the species data file or check for "
+        f"a typo in aero_spec_names."
+    )
 '''
 def equilibrate_h2o(species_names, species_masses, S, T, P, specdata_path='species_data/', sigma_h2o=0.072, rho_h2o=1000., MW_h2o=18e-3):
     spec_volumes = np.zeros(species_masses.shape)
