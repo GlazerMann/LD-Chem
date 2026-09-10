@@ -7,6 +7,7 @@ Created on Fri Sep 27 13:39:14 2024
 """
 from dataclasses import dataclass
 from typing import Tuple
+from pathlib import Path
 import numpy as np
 import sys
 
@@ -50,8 +51,8 @@ class TraceGasPopulation:
         )  
 
 def retrieve_gas_species(name, specdata_path='../species_data/'):
-    gas_datafile = specdata_path + 'gas_data.dat'
-    with open(gas_datafile) as data_file:
+    gas_datafile = Path(specdata_path) / "gas_data.dat"
+    with gas_datafile.open() as data_file:
         for line_number, line in enumerate(data_file, start=1):
             fields = line.split()
             if not fields or fields[0] != name:
@@ -60,14 +61,24 @@ def retrieve_gas_species(name, specdata_path='../species_data/'):
                 raise ValueError(
                     f"Malformed gas species entry for '{name}' in "
                     f"{gas_datafile} at line {line_number}: expected 5 fields, "
-                    f"found {len(fields)}.")
-            _,alpha,molar_mass,H0,H_exp = fields
-            return GasSpecies(
-                name=name,
-                alpha=float(alpha),
-                molar_mass=float(molar_mass.replace('d','e')),
-                H0=float(H0.replace('d','e')),
-                H_exp=float(H_exp.replace('d','e')))
+                    f"found {len(fields)}."
+                )
+            _, alpha, molar_mass, H0, H_exp = fields
+            try:
+                return GasSpecies(
+                    name=name,
+                    alpha=float(alpha),
+                    molar_mass=float(
+                        molar_mass.replace("D", "E").replace("d", "e")
+                    ),
+                    H0=float(H0.replace("D", "E").replace("d", "e")),
+                    H_exp=float(H_exp.replace("D", "E").replace("d", "e")),
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    f"Invalid numeric value in gas species '{name}' at "
+                    f"{gas_datafile}:{line_number}."
+                ) from exc
 
     raise ValueError(
         f"Unknown gas species '{name}': no matching entry found in "
