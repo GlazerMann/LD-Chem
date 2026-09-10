@@ -25,37 +25,28 @@ def es(T):
 ## RHS Derivative callback function
 @nb.njit()
 def dstate_dt(X0, V, dwc_dt):
-    """Calculates the instantaneous time-derivative of the parcel model system.
-
-    Given a current state vector `y` of the parcel model, computes the tendency
-    of each term including thermodynamic (pressure, temperature, etc) and aerosol
-    terms for an adiabatic parcel with a given updraft velocity. 
+    """Calculate the instantaneous thermodynamic parcel-state derivative.
 
     Parameters
     ----------
-    x : array_like
-        Current state of the parcel model system,
-            * x[0] = altitude, m
-            * x[1] = Pressure, Pa
-            * x[2] = temperature, K
-            * x[3] = water vapor mass mixing ratio, kg/kg
-            * x[4] = parcel saturation ratio 
-    t : float
-        Current simulation time, in seconds.
-    drdts : array_like
-        Array recording the rate of change of aerosol droplets, m/s
-    rs : array_like
-        Array recording the dropplet radius, m
-    Ns : array_like
-        Array recording aerosol number concentrations, 1/(m**3).
+    X0 : array_like
+        Current parcel state, ordered as:
+            * X0[0] = altitude, m
+            * X0[1] = temperature, K
+            * X0[2] = pressure, Pa
+            * X0[3] = saturation ratio
+            * X0[4] = water-vapor mass mixing ratio, kg/kg
     V : float
         Updraft velocity, m/s.
 
+    dwc_dt : float
+        Condensed-water mass concentration **rate**, kg m^-3 s^-1. This is a
+        rate, not the total condensed-water mass change over a model timestep.
+
     Returns
     -------
-    dxddt : array_like
-        Array of shape (``nr``+7, ) containing the evaluated parcel model
-        instaneous derivative.
+    dX_dt : ndarray
+        Five-element derivative corresponding to ``X0``.
 
     Notes
     -----
