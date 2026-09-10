@@ -264,8 +264,8 @@ def test_make_gas_reactions_header_only_returns_empty(tmp_path):
     gas_reactions = make_GasReactions(
         mechanism_data_path=str(tmp_path) + "/")
 
-    assert gas_reactions.reactions is None
-    assert gas_reactions.ids is None
+    assert gas_reactions.reactions == ()
+    assert gas_reactions.ids == ()
 
 def test_make_gas_reactions_parses_valid_file(tmp_path):
     (tmp_path / "gas_reactions.dat").write_text(
