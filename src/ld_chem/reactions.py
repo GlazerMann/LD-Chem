@@ -8,6 +8,7 @@ Created on Mon Sep 30 13:58:24 2024
 
 from dataclasses import dataclass
 from typing import Tuple
+from pathlib import Path
 import numpy as np
 import sys
 import ld_chem.constants as c
@@ -75,11 +76,11 @@ class AqueousReactions:
     
 @dataclass
 class GasReactions:
-    reactions: Tuple[GasReaction, ...] | None
-    ids: Tuple[int, ...] | None
+    reactions: Tuple[GasReaction, ...]
+    ids: Tuple[int, ...]
     
 def make_AqReactions(chemistry=None, mechanism_data_path='mechanisms/'):
-    reaction_datafile = mechanism_data_path + 'aq_reactions.dat'
+    reaction_datafile = Path(mechanism_data_path) / "gas_reactions.dat"
     Nreactions=0
     with open(reaction_datafile) as data_file:
         for line in data_file:
@@ -129,10 +130,13 @@ def make_GasReactions(chemistry=None, mechanism_data_path="mechanisms/"):
         "HO2_water_enhancement",
     }
 
+    def _fortran_float(value: str) -> float:
+        return float(value.replace("D", "E").replace("d", "e"))
+
     reactions = []
     ids = []
 
-    with open(reaction_datafile) as data_file:
+    with reaction_datafile.open() as data_file:
         # gas_reactions.dat contains a one-line header.
         next(data_file, None)
 
@@ -168,9 +172,9 @@ def make_GasReactions(chemistry=None, mechanism_data_path="mechanisms/"):
                 one_reaction = GasReaction(
                     reactants=reactants.split(","),
                     products=products.split(","),
-                    rate0=float(rate),
-                    high_P_limit=float(highP_limit),
-                    T_dependence=float(T_dependence),
+                    rate0=_fortran_float(rate),
+                    high_P_limit=_fortran_float(highP_limit),
+                    T_dependence=_fortran_float(T_dependence),
                     form=form,
                 )
             except ValueError as exc:
@@ -181,10 +185,7 @@ def make_GasReactions(chemistry=None, mechanism_data_path="mechanisms/"):
 
             ids.append(len(reactions))
             reactions.append(one_reaction)
-
-    if not reactions:
-        return GasReactions(reactions=None, ids=None)
-
+    
     return GasReactions(
         reactions=tuple(reactions),
         ids=tuple(ids),
