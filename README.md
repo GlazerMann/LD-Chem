@@ -193,6 +193,15 @@ Modify the default mechanism files in `src/ld_chem/mechanisms/`:
 2. For aqueous reactions, add or remove rows and assign them to group names.
 3. Select aqueous groups with `aq_chemistry`. Gas reactions have no group column; `gas_chemistry=True` enables all rows in the selected `gas_reactions.dat`.
 
+The scenario APIs perform this loading internally. Pass aqueous group names to
+`aq_chemistry` and use `gas_chemistry=True` to enable gas chemistry; do not pass
+objects returned by `make_AqReactions()` or `make_GasReactions()` to those
+scenario arguments.
+
+Direct calls to `make_GasReactions()` do not support a chemistry/group
+selector. Supplying a non-`None` `chemistry` argument raises
+`NotImplementedError`.
+
 **Option 2: Create custom mechanism files and specify the path**
 
 Create your own mechanism files and point the model to them:
