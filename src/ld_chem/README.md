@@ -58,19 +58,44 @@ The following are the primary public interfaces of the `ld_chem` module:
 ## Usage Example
 
 ```python
-from ld_chem import create_les_scenario, make_AqReactions, make_GasReactions
-
-# Create chemistry mechanisms
-aq_chem = make_AqReactions(chemistry=['sulfate'])
-gas_chem = make_GasReactions()
+from ld_chem import create_les_scenario
 
 # Create a simulation scenario
-scenario = create_les_scenario(
-    initial_aerosol_pop=pop,
-    aq_chemistry=aq_chem,
-    gas_chemistry=gas_chem
+element, driver, aq_reactions, gas_reactions = create_les_scenario(
+    num_concs=num_concs,
+    pHs=pHs,
+    species_names=species_names,
+    species_masses=species_masses,
+    trajectory_data=trajectory_data,
+    aq_chemistry=["sulfate"],
+    gas_chemistry=True,
 )
 ```
+
+`aq_chemistry` and `gas_chemistry` are scenario configuration arguments, not
+pre-built reaction objects:
+
+- `aq_chemistry` is an iterable of aqueous reaction group names, such as
+  `["sulfate"]`. The scenario loader passes those names to
+  `make_AqReactions()`.
+- `gas_chemistry` enables gas-phase chemistry when truthy. Gas reaction files
+  do not contain a group column, so the scenario loader loads all rows from the
+  selected `gas_reactions.dat`.
+
+The reaction loaders can also be used directly when a caller needs the parsed
+reaction definitions:
+
+```python
+from ld_chem import make_AqReactions, make_GasReactions
+
+aq_reactions = make_AqReactions(chemistry=["sulfate"])
+gas_reactions = make_GasReactions()
+```
+
+Passing a non-`None` `chemistry` argument directly to `make_GasReactions()` is
+not supported and raises `NotImplementedError`. Use `make_GasReactions()`
+without a chemistry selector to load all gas-phase reactions from the selected
+mechanism directory.
 
 ## Documentation
 
