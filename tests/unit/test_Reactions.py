@@ -200,8 +200,8 @@ def test_make_aq_reactions_empty():
     mechanisms_path = Path(__file__).parent.parent.parent / "src" / "ld_chem" / "mechanisms"
     chemistry = []
     aq_reactions = make_AqReactions(chemistry=chemistry, mechanism_data_path=str(mechanisms_path) + "/")
-    assert aq_reactions.reactions is None
-    assert aq_reactions.ids is None
+    assert aq_reactions.reactions == ()
+    assert aq_reactions.ids == ()
 
 def test_make_gas_reactions():
     """Test creation of GasReactions from file."""
