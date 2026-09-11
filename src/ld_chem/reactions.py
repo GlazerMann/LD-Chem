@@ -140,7 +140,7 @@ def make_GasReactions(chemistry=None, mechanism_data_path="mechanisms/"):
             % (chemistry,)
         )
 
-    reaction_datafile = mechanism_data_path + "gas_reactions.dat"
+    reaction_datafile = Path(mechanism_data_path) / "gas_reactions.dat"
     valid_forms = {
         "power",
         "exp",
