@@ -202,6 +202,12 @@ Direct calls to `make_GasReactions()` do not support a chemistry/group
 selector. Supplying a non-`None` `chemistry` argument raises
 `NotImplementedError`.
 
+`mechanism_data_path` is interpreted relative to the process working
+directory. From a source checkout at the repository root, the bundled mechanism
+directory is `src/ld_chem/mechanisms/`. Callers that use the reaction loaders
+directly should pass the mechanism directory explicitly instead of assuming
+that `"mechanisms/"` refers to the package's bundled data.
+
 **Option 2: Create custom mechanism files and specify the path**
 
 Create your own mechanism files and point the model to them:
