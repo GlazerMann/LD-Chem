@@ -67,6 +67,7 @@ element, driver, aq_reactions, gas_reactions = create_les_scenario(
     species_names=species_names,
     species_masses=species_masses,
     trajectory_data=trajectory_data,
+    mechanism_data_path="src/ld_chem/mechanisms/",
     aq_chemistry=["sulfate"],
     gas_chemistry=True,
 )
@@ -88,14 +89,27 @@ reaction definitions:
 ```python
 from ld_chem import make_AqReactions, make_GasReactions
 
-aq_reactions = make_AqReactions(chemistry=["sulfate"])
-gas_reactions = make_GasReactions()
+mechanism_data_path = "src/ld_chem/mechanisms/"
+
+aq_reactions = make_AqReactions(
+    chemistry=["sulfate"],
+    mechanism_data_path=mechanism_data_path,
+)
+gas_reactions = make_GasReactions(
+    mechanism_data_path=mechanism_data_path,
+)
 ```
 
 Passing a non-`None` `chemistry` argument directly to `make_GasReactions()` is
 not supported and raises `NotImplementedError`. Use `make_GasReactions()`
 without a chemistry selector to load all gas-phase reactions from the selected
 mechanism directory.
+
+The default loader path, `"mechanisms/"`, is resolved relative to the current
+working directory. When running from the repository root, use
+`"src/ld_chem/mechanisms/"` explicitly, as shown above. Installed applications
+should pass the directory that contains their selected `aq_reactions.dat` and
+`gas_reactions.dat` files rather than relying on the current working directory.
 
 ## Documentation
 
