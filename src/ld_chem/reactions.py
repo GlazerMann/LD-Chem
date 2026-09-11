@@ -79,37 +79,55 @@ class GasReactions:
     reactions: Tuple[GasReaction, ...]
     ids: Tuple[int, ...]
     
-def make_AqReactions(chemistry=None, mechanism_data_path='mechanisms/'):
-    reaction_datafile = Path(mechanism_data_path) / "gas_reactions.dat"
-    Nreactions=0
-    with open(reaction_datafile) as data_file:
-        for line in data_file:
-            reactants,products,rate,dH_R,group = line.split()
-            if group in chemistry:
-                Nreactions+=1
-    if Nreactions > 0:
-        reactions = [None]*Nreactions
-        ids = [None]*Nreactions
-        ii=0
-        while ii < Nreactions:
-            with open(reaction_datafile) as data_file:
-                for line in data_file:
-                    reactants,products,rate,Ea_R,group = line.split()
-                    if group in chemistry:
-                        reactants=reactants.split(',')
-                        products=products.split(',')
-                        OneReaction = AqReaction(reactants=reactants,
-                                                 products=products,
-                                                 rate0=float(rate),
-                                                 neg_Ea_R=float(Ea_R))
-                        reactions[ii]=OneReaction
-                        ids[ii]=ii
-                        ii+=1
-    else:
-        reactions = None
-        ids = None
-    return AqueousReactions(reactions=reactions, ids=ids)
+def make_AqReactions(chemistry=None, mechanism_data_path="mechanisms/"):
+    reaction_datafile = Path(mechanism_data_path) / "aq_reactions.dat"
+    selected_groups = None if chemistry is None else set(chemistry)
 
+    def _fortran_float(value: str) -> float:
+        return float(value.replace("D", "E").replace("d", "e"))
+
+    reactions = []
+    ids = []
+
+    with reaction_datafile.open(encoding="utf-8") as data_file:
+        # aq_reactions.dat contains a one-line header.
+        next(data_file, None)
+
+        for line_number, line in enumerate(data_file, start=2):
+            fields = line.split()
+            if not fields:
+                continue
+            if len(fields) != 5:
+                raise ValueError(
+                    f"Malformed aqueous reaction in {reaction_datafile} at "
+                    f"line {line_number}: expected 5 fields, found "
+                    f"{len(fields)}."
+                )
+
+            reactants, products, rate, neg_Ea_R, group = fields
+            if selected_groups is not None and group not in selected_groups:
+                continue
+
+            try:
+                one_reaction = AqReaction(
+                    reactants=reactants.split(","),
+                    products=products.split(","),
+                    rate0=_fortran_float(rate),
+                    neg_Ea_R=_fortran_float(neg_Ea_R),
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    f"Invalid numeric value in aqueous reaction at "
+                    f"{reaction_datafile}:{line_number}."
+                ) from exc
+
+            ids.append(len(reactions))
+            reactions.append(one_reaction)
+
+    return AqueousReactions(
+        reactions=tuple(reactions),
+        ids=tuple(ids),
+    )
 
 def make_GasReactions(chemistry=None, mechanism_data_path="mechanisms/"):
     if chemistry is not None:
