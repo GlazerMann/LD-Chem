@@ -148,7 +148,7 @@ def simulate_les_trajectory(
     
     # show total run time
     if print_to_screen:
-            print('Solving time:', round(time.time() - runtime0, 2), 'seconds')
+            print('Solving time:', round(time.time() - runtime0, 2), 'seconds', file=f)
     else:
         with open(progress_filename, 'a') as f:
             print('Solving time:', round(time.time() - runtime0, 2), 'seconds', file=f)
