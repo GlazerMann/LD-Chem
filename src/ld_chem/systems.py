@@ -25,7 +25,12 @@ class Processes:
 
 @dataclass
 class Feedbacks:
+    # Historical names: these fields store water-mass changes accumulated over
+    # one model timestep (kg/m^3), not time derivatives. update_air() converts
+    # dwc_dt to kg/m^3/s before passing it to air_thermo.dstate_dt(), whose
+    # output is an instantaneous derivative.
     dwc_dt: float = 0.
+    # Corresponding vapor-water mass change over the same timestep (kg/m^3).
     dwv_dt: float = 0.
     # dwc_dt_next: float = 0.
     # dwc: float = 0. # change in water mass, kg water / m^3 air
