@@ -33,7 +33,7 @@ def simulate_les_trajectory(
     and zero-density species definitions. If ``aero_species`` is ``None``, the
     existing LD-Chem species lookup behavior is unchanged.
     """
-  
+
     if not mechanism_data_path:
         if print_to_screen:
             print('WARNING: No mechanism path specified; using default mechanisms in '+str(Path(__file__).resolve().parent)+"/mechanisms/")
