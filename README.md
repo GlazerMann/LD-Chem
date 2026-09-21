@@ -89,10 +89,11 @@ For particulate initial species, LD-Chem preserves the supplied density and
 hygroscopicity (`kappa`). These are the properties part2pop used to determine
 dry particle volume and effective kappa. LD-Chem deliberately keeps molar mass
 from its own species definitions so fixing the particle handoff does not also
-change aqueous-chemistry or gas/particle conversion semantics. Surface tension
-also remains LD-Chem-owned because part2pop's current particle implementation
-does not consistently consume per-species surface tension. H2O and LD-Chem
-species with zero reference density likewise keep their complete LD-Chem
+change aqueous-chemistry or gas/particle conversion semantics. LD-Chem also
+retains its existing surface-tension default (`0.072 N/m`); part2pop's
+per-species surface-tension value is not imported because its current particle
+implementation does not consistently consume it. H2O and LD-Chem species with
+zero reference density likewise keep their complete LD-Chem
 definitions; H2O is re-equilibrated at the scenario's initial saturation ratio
 and temperature.
 
