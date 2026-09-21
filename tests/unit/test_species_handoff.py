@@ -144,7 +144,7 @@ def test_les_preserves_part2pop_dry_diameter_and_kappa():
     _assert_source_dry_physics_preserved(state, population)
 
 
-def test_readme_population_preserves_dry_physics_without_importing_chemistry_metadata():
+def test_readme_population_preserves_dry_physics_without_importing_out_of_scope_properties():
     population = _build_readme_population()
     names, masses, num_concs, species = _handoff_arrays(population)
 
