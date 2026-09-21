@@ -195,6 +195,38 @@ def test_h2o_definition_stays_ld_chem_owned_and_mass_is_reequilibrated():
     )
 
 
+def test_les_h2o_definition_stays_ld_chem_owned_and_mass_is_reequilibrated():
+    population = _build_source_population()
+    names, masses, num_concs, species = _handoff_arrays(population)
+    h2o_idx = int(np.where(names == "H2O")[0][0])
+    masses[:, h2o_idx] = 1.0e-9
+    supplied_h2o_mass = masses[:, h2o_idx].copy()
+
+    source_h2o = next(spec for spec in species if spec.name == "H2O")
+    source_h2o.density = 900.0
+    source_h2o.kappa = 0.5
+    source_h2o.molar_mass = 0.020
+    source_h2o.surface_tension = 0.071
+
+    state, _, _, _ = create_les_scenario(
+        num_concs=num_concs,
+        pHs=np.full(num_concs.shape, 4.5),
+        species_names=names,
+        species_masses=masses,
+        trajectory_data=_trajectory(),
+        specdata_path=SPECIES_DATA,
+        aero_species=species,
+    )
+
+    expected_h2o = retrieve_one_species("H2O", specdata_path=SPECIES_DATA)
+    actual_h2o = state.particles.species[state.particles.get_species_idx("H2O")]
+    assert actual_h2o == expected_h2o
+    assert not np.allclose(
+        state.particles.spec_masses[:, h2o_idx], supplied_h2o_mass,
+        rtol=1e-6, atol=0.0,
+    )
+
+
 def test_name_only_calls_keep_existing_ld_chem_lookup_behavior():
     state, _, _ = create_parcel_scenario(
         num_concs=np.array([1.0e6]),
