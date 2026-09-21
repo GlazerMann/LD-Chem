@@ -23,6 +23,17 @@ def simulate_les_trajectory(
     condensation=True, cocondensation=False, aq_chemistry=False,
     gas_chemistry=False, relaxation_time=None, aero_species=None):
 
+    """Run a trajectory-driven simulation.
+
+    ``aero_species`` optionally supplies the part2pop species definitions that
+    produced ``aero_spec_masses``. It must contain one uniquely named species
+    per mass column, in the same order and with the same spelling as
+    ``aero_spec_names``. With this handoff, LD-Chem preserves particulate
+    density and kappa while retaining its own molar mass, surface tension, H2O,
+    and zero-density species definitions. If ``aero_species`` is ``None``, the
+    existing LD-Chem species lookup behavior is unchanged.
+    """
+  
     if not mechanism_data_path:
         if print_to_screen:
             print('WARNING: No mechanism path specified; using default mechanisms in '+str(Path(__file__).resolve().parent)+"/mechanisms/")
@@ -168,6 +179,16 @@ def simulate_parcel(
     mechanism_data_path=None, condensation = True, 
     cocondensation = False, aq_chemistry = False, gas_chemistry = False,
     aero_species=None):
+    """Run an adiabatic parcel simulation.
+
+    ``aero_species`` optionally supplies the part2pop species definitions that
+    produced ``aero_spec_masses``. It must contain one uniquely named species
+    per mass column, in the same order and with the same spelling as
+    ``aero_spec_names``. With this handoff, LD-Chem preserves particulate
+    density and kappa while retaining its own molar mass, surface tension, H2O,
+    and zero-density species definitions. If ``aero_species`` is ``None``, the
+    existing LD-Chem species lookup behavior is unchanged.
+    """
 
     if not mechanism_data_path:
         if print_to_screen:
