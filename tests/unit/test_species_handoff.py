@@ -394,6 +394,7 @@ def test_particulate_density_and_kappa_reject_invalid_values(
             (SimpleNamespace(**values),),
         )
 
+
 @pytest.mark.parametrize(
     ("attribute", "value"),
     [
@@ -405,7 +406,7 @@ def test_particulate_density_and_kappa_reject_invalid_values(
         ("kappa", 0.001 + 0j),
     ],
 )
-def test_particulate_density_and_kappa_reject_non_numeric_scalar_types(
+def test_particulate_density_and_kappa_reject_non_real_numeric_scalar_types(
         attribute, value):
     values = {"name": "OC", "density": 1000.0, "kappa": 0.001}
     values[attribute] = value
