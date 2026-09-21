@@ -90,13 +90,17 @@ def _trajectory():
 
 
 def _assert_source_dry_physics_preserved(state, population):
-    assert np.allclose(
+    np.testing.assert_allclose(
         state.particles.get_particle_var("dry_diameter"),
         population.get_particle_var("dry_diameter"),
+        rtol=1e-10,
+        atol=0.0,
     )
-    assert np.allclose(
+    np.testing.assert_allclose(
         state.particles.get_particle_var("tkappa"),
         population.get_particle_var("tkappa"),
+        rtol=1e-10,
+        atol=0.0,
     )
 
 
@@ -280,6 +284,15 @@ def test_singleton_2d_name_axes_are_accepted(names):
     assert list(snapshots) == ["OC", "H2O"]
 
 
+def test_ragged_species_names_are_rejected_with_contract_error():
+    with pytest.raises(ValueError, match="species_names must be 1-D"):
+        _prepare(
+            [["OC"], ["H2O", "SO4"]],
+            np.zeros((1, 3)),
+            (),
+        )
+
+
 def test_genuine_2d_name_grid_is_rejected():
     with pytest.raises(ValueError, match="single-row/single-column"):
         _prepare(
@@ -308,8 +321,16 @@ def test_mass_matrix_must_be_rectangular_2d(masses):
 
 def test_mass_columns_must_match_species_names():
     source = (SimpleNamespace(name="OC", density=1000.0, kappa=0.001),)
-    with pytest.raises(ValueError, match="one entry per"):
+    with pytest.raises(
+        ValueError, match="species_names must describe exactly one entry per"
+    ):
         _prepare(np.array(["OC"]), np.zeros((1, 2)), source)
+
+
+def test_aero_species_must_be_iterable():
+    source = SimpleNamespace(name="OC", density=1000.0, kappa=0.001)
+    with pytest.raises(TypeError, match="aero_species must be an iterable"):
+        _prepare(np.array(["OC"]), np.zeros((1, 1)), source)
 
 
 @pytest.mark.parametrize(
@@ -354,20 +375,20 @@ def test_particulate_density_and_kappa_attributes_are_required(missing):
 
 
 @pytest.mark.parametrize(
-    ("attribute", "value"),
+    ("attribute", "value", "expected_exception"),
     [
-        ("density", [1000.0]),
-        ("kappa", np.array([0.001])),
-        ("density", "not-a-number"),
-        ("kappa", np.nan),
-        ("density", np.inf),
+        ("density", [1000.0], TypeError),
+        ("kappa", np.array([0.001]), TypeError),
+        ("density", "not-a-number", TypeError),
+        ("kappa", np.nan, ValueError),
+        ("density", np.inf, ValueError),
     ],
 )
-def test_particulate_density_and_kappa_must_be_scalar_numeric_and_finite(attribute, value):
+def test_particulate_density_and_kappa_reject_invalid_values(
+        attribute, value, expected_exception):
     values = {"name": "OC", "density": 1000.0, "kappa": 0.001}
     values[attribute] = value
-    expected = (TypeError, ValueError)
-    with pytest.raises(expected):
+    with pytest.raises(expected_exception):
         _prepare(
             np.array(["OC"]), np.zeros((1, 1)),
             (SimpleNamespace(**values),),
@@ -380,13 +401,15 @@ def test_particulate_density_and_kappa_must_be_scalar_numeric_and_finite(attribu
         ("kappa", "0.001"),
         ("density", True),
         ("kappa", False),
+        ("density", 1000.0 + 0j),
+        ("kappa", 0.001 + 0j),
     ],
 )
 def test_particulate_density_and_kappa_reject_non_numeric_scalar_types(
         attribute, value):
     values = {"name": "OC", "density": 1000.0, "kappa": 0.001}
     values[attribute] = value
-    with pytest.raises(TypeError, match="scalar numeric"):
+    with pytest.raises(TypeError, match="scalar real numeric"):
         _prepare(
             np.array(["OC"]), np.zeros((1, 1)),
             (SimpleNamespace(**values),),
@@ -533,8 +556,18 @@ def test_public_parcel_driver_preserves_readme_dry_physics_in_output(tmp_path):
     particle_fields = list(output["particle species"])
     dry_idx = particle_fields.index("Ddry")
     kappa_idx = particle_fields.index("kappa")
-    assert np.allclose(output["particles"][0, :, dry_idx], expected_dry_diameter)
-    assert np.allclose(output["particles"][0, :, kappa_idx], expected_kappa)
+    np.testing.assert_allclose(
+        output["particles"][0, :, dry_idx],
+        expected_dry_diameter,
+        rtol=1e-10,
+        atol=0.0,
+    )
+    np.testing.assert_allclose(
+        output["particles"][0, :, kappa_idx],
+        expected_kappa,
+        rtol=1e-10,
+        atol=0.0,
+    )
 
 
 class _StopAfterScenario(Exception):
