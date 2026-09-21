@@ -121,7 +121,13 @@ def _prepare_initial_species(
     if aero_species is None:
         return species_names, species_masses, {}
 
-    name_array = np.asarray(species_names)
+    try:
+        name_array = np.asarray(species_names)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "species_names must be 1-D or a single-row/single-column 2-D array "
+            "when aero_species is provided"
+        ) from exc
     if name_array.ndim == 1:
         normalized_names = name_array
     # Existing LD-Chem callers commonly use (1, N) name arrays. Accept a
@@ -149,11 +155,16 @@ def _prepare_initial_species(
         )
     if mass_array.shape[1] != len(normalized_names):
         raise ValueError(
-            "species_names and aero_species must describe exactly one entry per "
+            "species_names must describe exactly one entry per "
             "species_masses column"
         )
 
-    supplied_species = tuple(aero_species)
+    try:
+        supplied_species = tuple(aero_species)
+    except TypeError as exc:
+        raise TypeError(
+            "aero_species must be an iterable of species objects"
+        ) from exc
     if len(supplied_species) != len(normalized_names):
         raise ValueError(
             "aero_species must contain exactly one species object per "
@@ -228,19 +239,19 @@ def _prepare_initial_species(
             except (TypeError, ValueError) as exc:
                 raise TypeError(
                     f"aero_species[{index}] {attribute} must be a scalar "
-                    "numeric value"
+                    "real numeric value"
                 ) from exc
             if value_array.ndim != 0 or value_array.dtype.kind not in "iuf":
                 raise TypeError(
                     f"aero_species[{index}] {attribute} must be a scalar "
-                    "numeric value"
+                    "real numeric value"
                 )
             try:
                 converted[attribute] = float(value)
             except (TypeError, ValueError) as exc:
                 raise TypeError(
                     f"aero_species[{index}] {attribute} must be a scalar "
-                    "numeric value"
+                    "real numeric value"
                 ) from exc
 
         density = converted["density"]
