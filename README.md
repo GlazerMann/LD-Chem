@@ -106,7 +106,7 @@ to come from LD-Chem's local species data.
 
 The handoff therefore preserves the dry-particle interpretation established by
 part2pop; it does not preserve arbitrary incoming wet state or override
-LD-Chem's molar-mass or surface-tension definitions.
+LD-Chem's molar-mass definitions or surface-tension default.
 
 ### Analyze and plot results
 ```python
