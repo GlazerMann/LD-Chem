@@ -25,11 +25,20 @@ class AerosolSpecies:
 
 def retrieve_one_species(name, specdata_path='species_data/', surface_tension=0.072):
     aero_datafile = Path(specdata_path) / "aero_data.dat"
+    matched_species = None
+    matched_line_number = None
     with aero_datafile.open(encoding="utf-8") as data_file:
         for line_number, line in enumerate(data_file, start=1):
             fields = line.split()
             if not fields or fields[0] != name:
                 continue
+
+            if matched_species is not None:
+                raise ValueError(
+                    f"Duplicate aerosol species entry for '{name}' in "
+                    f"{aero_datafile}: lines {matched_line_number} and "
+                    f"{line_number}."
+                )
 
             if len(fields) != 5:
                 raise ValueError(
@@ -40,7 +49,7 @@ def retrieve_one_species(name, specdata_path='species_data/', surface_tension=0.
 
             name_in_file, density, _ions_in_solution, molar_mass, kappa = fields
             try:
-                return AerosolSpecies(
+                matched_species = AerosolSpecies(
                     name=name_in_file,
                     density=float(density),
                     kappa=float(kappa),
@@ -54,6 +63,10 @@ def retrieve_one_species(name, specdata_path='species_data/', surface_tension=0.
                     f"Invalid numeric value in aerosol species '{name}' at "
                     f"{aero_datafile}:{line_number}."
                 ) from exc
+            matched_line_number = line_number
+
+    if matched_species is not None:
+        return matched_species
 
     raise ValueError(
         f"Unknown aerosol species '{name}': no matching entry found in "
