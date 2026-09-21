@@ -43,3 +43,18 @@ def test_retrieve_one_species_reports_invalid_numeric_context(tmp_path: Path):
         match=r"Invalid numeric value in aerosol species 'SO4'.*:1",
     ):
         retrieve_one_species("SO4", specdata_path=tmp_path)
+
+
+def test_retrieve_one_species_rejects_duplicate_matching_rows(tmp_path: Path):
+    (tmp_path / "aero_data.dat").write_text(
+        "SO4 1800 0 96d-3 0.65\n"
+        "OC 1200 0 60d-3 0.10\n"
+        "SO4 1700 0 96d-3 0.60\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"Duplicate aerosol species entry.*lines 1 and 3",
+    ):
+        retrieve_one_species("SO4", specdata_path=tmp_path)
