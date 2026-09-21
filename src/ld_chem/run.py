@@ -29,9 +29,10 @@ def simulate_les_trajectory(
     produced ``aero_spec_masses``. It must contain one uniquely named species
     per mass column, in the same order and with the same spelling as
     ``aero_spec_names``. With this handoff, LD-Chem preserves particulate
-    density and kappa while retaining its own molar mass, surface tension, H2O,
-    and zero-density species definitions. If ``aero_species`` is ``None``, the
-    existing LD-Chem species lookup behavior is unchanged.
+    density and kappa while retaining its own molar mass and existing
+    surface-tension default (0.072 N/m). H2O and zero-density species remain
+    fully LD-Chem-owned. If ``aero_species`` is ``None``, the existing LD-Chem
+    species lookup behavior is unchanged.
     """
 
     if not mechanism_data_path:
@@ -185,9 +186,10 @@ def simulate_parcel(
     produced ``aero_spec_masses``. It must contain one uniquely named species
     per mass column, in the same order and with the same spelling as
     ``aero_spec_names``. With this handoff, LD-Chem preserves particulate
-    density and kappa while retaining its own molar mass, surface tension, H2O,
-    and zero-density species definitions. If ``aero_species`` is ``None``, the
-    existing LD-Chem species lookup behavior is unchanged.
+    density and kappa while retaining its own molar mass and existing
+    surface-tension default (0.072 N/m). H2O and zero-density species remain
+    fully LD-Chem-owned. If ``aero_species`` is ``None``, the existing LD-Chem
+    species lookup behavior is unchanged.
     """
 
     if not mechanism_data_path:
