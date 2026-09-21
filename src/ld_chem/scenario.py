@@ -7,7 +7,7 @@ simulation scenarios.
 from dataclasses import dataclass
 import numpy as np
 from .reactions import make_AqReactions, make_GasReactions
-from .particles import retrieve_one_species
+from .particles import AerosolSpecies, retrieve_one_species
 from part2pop.population import ParticlePopulation
 from .gases import TraceGasPopulation, make_TraceGasPopulation
 from scipy.optimize import fminbound
@@ -85,6 +85,191 @@ class LagrangianElementDriver:
     TraceGas_data: Optional[float] = None
 
 
+def _prepare_initial_species(
+        species_names, species_masses, aero_species, specdata_path):
+    """Validate and snapshot part2pop density/kappa for initial species.
+
+    ``species_masses`` is column-oriented, so ``aero_species`` must contain one
+    uniquely named definition per input mass column, in exactly the same order
+    and with exactly the same spelling as ``species_names``. Names may be a 1-D
+    sequence or a single-row/single-column 2-D array; genuinely two-dimensional
+    name grids are rejected instead of being silently flattened.
+
+    LD-Chem cannot verify provenance: callers must pass species definitions from
+    the same population that produced ``species_masses``. For particulate
+    initial species, only density and kappa are taken from the supplied objects.
+    Those are the properties that determine the dry volume and effective kappa
+    of a part2pop particle. LD-Chem keeps its own molar mass so this handoff
+    does not silently change aqueous-chemistry or gas/particle conversion
+    semantics. Surface tension also remains LD-Chem-owned because part2pop's
+    current particle implementation does not consistently consume per-species
+    surface tension.
+
+    Supplying definitions does not expand LD-Chem's accepted species namespace.
+    Every supplied initial name must still resolve through the selected LD-Chem
+    species-data table and use the exact spelling expected by enabled chemistry.
+    H2O and LD-Chem species with zero reference density keep their complete
+    LD-Chem definitions. Both scenario constructors still re-equilibrate H2O at
+    their initial saturation ratio and temperature, so the handoff preserves
+    dry-particle interpretation rather than an arbitrary incoming wet state.
+
+    Caller object identity, subclasses, methods, and unrelated attributes are
+    deliberately not imported into model state.
+    """
+    # Leave existing callers untouched when the explicit handoff is not used.
+    if aero_species is None:
+        return species_names, species_masses, {}
+
+    name_array = np.asarray(species_names)
+    if name_array.ndim == 1:
+        normalized_names = name_array
+    # Existing LD-Chem callers commonly use (1, N) name arrays. Accept a
+    # singleton axis, but never flatten a genuine 2-D species grid because
+    # that could silently rebind definitions to the wrong mass columns.
+    elif name_array.ndim == 2 and 1 in name_array.shape:
+        normalized_names = name_array.reshape(-1)
+    else:
+        raise ValueError(
+            "species_names must be 1-D or a single-row/single-column 2-D array "
+            "when aero_species is provided"
+        )
+
+    try:
+        mass_array = np.asarray(species_masses)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "species_masses must be a rectangular 2-D particle-by-species array "
+            "when aero_species is provided"
+        ) from exc
+    if mass_array.ndim != 2:
+        raise ValueError(
+            "species_masses must be a 2-D particle-by-species array when "
+            "aero_species is provided"
+        )
+    if mass_array.shape[1] != len(normalized_names):
+        raise ValueError(
+            "species_names and aero_species must describe exactly one entry per "
+            "species_masses column"
+        )
+
+    supplied_species = tuple(aero_species)
+    if len(supplied_species) != len(normalized_names):
+        raise ValueError(
+            "aero_species must contain exactly one species object per "
+            "species_names entry"
+        )
+
+    expected_names = [str(name) for name in normalized_names]
+    if len(set(expected_names)) != len(expected_names):
+        raise ValueError(
+            "species_names must be unique when aero_species is provided; "
+            "duplicate names cannot be mapped unambiguously to mass columns"
+        )
+
+    for index, species in enumerate(supplied_species):
+        if getattr(species, "name", None) is None:
+            raise TypeError(
+                f"aero_species[{index}] is missing required attributes: name"
+            )
+
+    supplied_names = [str(species.name) for species in supplied_species]
+    if supplied_names != expected_names:
+        raise ValueError(
+            "aero_species names must exactly match species_names in the same order"
+        )
+
+    # Validate names with the same LD-Chem table used by the original path.
+    # Translate the historical missing-row UnboundLocalError; hardened loaders
+    # can raise ValueError directly and that error should pass through unchanged.
+    reference_species = {}
+    for name in supplied_names:
+        try:
+            reference_species[name] = retrieve_one_species(
+                name, specdata_path=specdata_path
+            )
+        except UnboundLocalError as exc:
+            raise ValueError(
+                f"supplied initial species {name!r} is not defined in "
+                f"LD-Chem species data at {specdata_path!r}"
+            ) from exc
+
+    snapshots = {}
+    for index, source in enumerate(supplied_species):
+        name = supplied_names[index]
+        reference = reference_species[name]
+
+        # Water is immediately re-equilibrated, and zero-density species encode
+        # dissolved/gas semantics in LD-Chem. Keep those definitions entirely
+        # local instead of importing part2pop values that LD-Chem would not use
+        # consistently.
+        if name == "H2O" or reference.density == 0:
+            snapshots[name] = reference
+            continue
+
+        missing = [
+            attribute
+            for attribute in ("density", "kappa")
+            if getattr(source, attribute, None) is None
+        ]
+        if missing:
+            raise TypeError(
+                f"aero_species[{index}] is missing required attributes: "
+                + ", ".join(missing)
+            )
+
+        converted = {}
+        for attribute in ("density", "kappa"):
+            value = getattr(source, attribute)
+            # Require true scalars so one-element arrays cannot be silently
+            # coerced and mistaken for a valid species definition.
+            try:
+                value_array = np.asarray(value)
+            except (TypeError, ValueError) as exc:
+                raise TypeError(
+                    f"aero_species[{index}] {attribute} must be a scalar "
+                    "numeric value"
+                ) from exc
+            if value_array.ndim != 0:
+                raise TypeError(
+                    f"aero_species[{index}] {attribute} must be a scalar "
+                    "numeric value"
+                )
+            try:
+                converted[attribute] = float(value)
+            except (TypeError, ValueError) as exc:
+                raise TypeError(
+                    f"aero_species[{index}] {attribute} must be a scalar "
+                    "numeric value"
+                ) from exc
+
+        density = converted["density"]
+        kappa = converted["kappa"]
+        if not np.isfinite([density, kappa]).all():
+            raise ValueError(
+                f"aero_species[{index}] density and kappa must be finite"
+            )
+        if density <= 0:
+            raise ValueError(
+                f"aero_species[{index}] density must be > 0 for particulate "
+                f"LD-Chem species {name!r}"
+            )
+        if kappa < 0:
+            raise ValueError(
+                f"aero_species[{index}] kappa must be >= 0 for particulate "
+                f"LD-Chem species {name!r}"
+            )
+
+        snapshots[name] = AerosolSpecies(
+            name=reference.name,
+            density=density,
+            kappa=kappa,
+            molar_mass=reference.molar_mass,
+            surface_tension=reference.surface_tension,
+        )
+
+    return normalized_names, mass_array, snapshots
+
+
 def create_parcel_scenario(
         num_concs = np.array([1.0e6]), pHs=np.array([7.0]),
         species_names=np.array(['NaCl']), species_masses=np.array([2.4e-25]),
@@ -92,7 +277,11 @@ def create_parcel_scenario(
         z_start=0.0,z_end=1000, gas_names=None, gas_concs=None, 
         dt=1.0, specdata_path='species_data/',
         mechanism_data_path='mechamisms/', aq_chemistry=None, 
-        cocondensation=False, gas_chemistry=False):
+        cocondensation=False, gas_chemistry=False, aero_species=None):
+
+    species_names, species_masses, initial_species = _prepare_initial_species(
+        species_names, species_masses, aero_species, specdata_path
+    )
 
     # load in the gas reactions
     if gas_chemistry:
@@ -181,8 +370,17 @@ def create_parcel_scenario(
     # turn the species names and masses into particles
     ids = [ii for ii in range(len(species_masses))]
     aero_specs = []
-    for spec in species_names:
-        aero_specs.append(retrieve_one_species(spec, specdata_path=specdata_path))
+    # Preserve definitions for original mass columns. Species appended above by
+    # LD-Chem chemistry/cocondensation are absent from initial_species and must
+    # continue to come from LD-Chem's local species table.
+    for spec_name in species_names:
+        spec_name = str(spec_name)
+        if spec_name in initial_species:
+            aero_specs.append(initial_species[spec_name])
+        else:
+            aero_specs.append(
+                retrieve_one_species(spec_name, specdata_path=specdata_path)
+            )
     aerosol_population = ParticlePopulation(species=aero_specs, spec_masses=species_masses, num_concs=num_concs, ids=ids)
     
     # equilibrate the particles with water at the initial conditions
@@ -227,7 +425,11 @@ def create_les_scenario(num_concs=np.array([1e6]),
             specdata_path='species_data/',
             mechanism_data_path='mechanisms/',
             condensation=True, cocondensation=False, 
-            aq_chemistry=None, gas_chemistry=None):
+            aq_chemistry=None, gas_chemistry=None, aero_species=None):
+
+    species_names, species_masses, initial_species = _prepare_initial_species(
+        species_names, species_masses, aero_species, specdata_path
+    )
     
     # load the gas data
     try:
@@ -322,8 +524,17 @@ def create_les_scenario(num_concs=np.array([1e6]),
     # turn the species names and masses into particles
     ids = [ii for ii in range(len(species_masses))]
     aero_specs = []
-    for spec in species_names:
-        aero_specs.append(retrieve_one_species(spec, specdata_path=specdata_path))
+    # Preserve definitions for original mass columns. Species appended above by
+    # LD-Chem chemistry/cocondensation are absent from initial_species and must
+    # continue to come from LD-Chem's local species table.
+    for spec_name in species_names:
+        spec_name = str(spec_name)
+        if spec_name in initial_species:
+            aero_specs.append(initial_species[spec_name])
+        else:
+            aero_specs.append(
+                retrieve_one_species(spec_name, specdata_path=specdata_path)
+            )
     aerosol_population = ParticlePopulation(species=aero_specs, spec_masses=species_masses, num_concs=num_concs, ids=ids)
 
     # equilibrate the particles with water at the initial conditions

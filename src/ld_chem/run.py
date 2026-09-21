@@ -21,7 +21,7 @@ def simulate_les_trajectory(
     progress_filename='RUN_PROGRESS.out', write_every=60.0, print_to_screen=True,
     radius_scale='lin', accom=1.0, 
     condensation=True, cocondensation=False, aq_chemistry=False,
-    gas_chemistry=False, relaxation_time=None):
+    gas_chemistry=False, relaxation_time=None, aero_species=None):
 
     if not mechanism_data_path:
         if print_to_screen:
@@ -51,7 +51,8 @@ def simulate_les_trajectory(
         specdata_path=specdata_path,
         mechanism_data_path=mechanism_data_path,
         condensation=condensation, cocondensation=cocondensation, 
-        aq_chemistry=aq_chemistry, gas_chemistry=gas_chemistry)   
+        aq_chemistry=aq_chemistry, gas_chemistry=gas_chemistry,
+        aero_species=aero_species)
     
     processes = Processes(
         condensation = condensation, 
@@ -165,7 +166,8 @@ def simulate_parcel(
     output_filename='trajectory_output.pkl', status_filename='trajectory_status',
     progress_filename='RUN_PROGRESS.out', write_every=60.0, print_to_screen=True,
     mechanism_data_path=None, condensation = True, 
-    cocondensation = False, aq_chemistry = False, gas_chemistry = False):
+    cocondensation = False, aq_chemistry = False, gas_chemistry = False,
+    aero_species=None):
 
     if not mechanism_data_path:
         if print_to_screen:
@@ -194,7 +196,8 @@ def simulate_parcel(
         z_start=z_start, z_end=z_end, gas_names=gas_names, gas_concs=gas_concs, 
         dt=dt, specdata_path=specdata_path,
         mechanism_data_path=mechanism_data_path, aq_chemistry=aq_chemistry, 
-        cocondensation=cocondensation, gas_chemistry=gas_chemistry)
+        cocondensation=cocondensation, gas_chemistry=gas_chemistry,
+        aero_species=aero_species)
     
     processes = Processes(
         condensation = condensation, 

@@ -66,6 +66,7 @@ pop = build_population(pop_cfg)
 aero_spec_names = np.array([species.name for species in pop.species])
 aero_spec_masses = np.array(pop.spec_masses)
 num_concs = np.array(pop.num_concs)
+aero_species = tuple(pop.species)
 pHs = np.full(num_concs.shape[0], 4.5)
 
 simulate_parcel(
@@ -74,9 +75,37 @@ simulate_parcel(
     S0=0.85, P0=101325.0, T0=298.0, radius_scale='log',
     gas_names=None, gas_concs=None, condensation = True, 
     cocondensation = False, aq_chemistry = None, 
-    gas_chemistry = False, output_filename='trajectory.pkl')
+    gas_chemistry = False, aero_species=aero_species,
+    output_filename='trajectory.pkl')
 
 ```
+
+When the initial aerosol population comes from `part2pop`, pass the same
+`pop.species` sequence through `aero_species`. Names must be unique, and their
+ordering must exactly match the mass-array columns. The definitions must come
+from the same population that produced those masses.
+
+For particulate initial species, LD-Chem preserves the supplied density and
+hygroscopicity (`kappa`). These are the properties part2pop used to determine
+dry particle volume and effective kappa. LD-Chem deliberately keeps molar mass
+from its own species definitions so fixing the particle handoff does not also
+change aqueous-chemistry or gas/particle conversion semantics. Surface tension
+also remains LD-Chem-owned because part2pop's current particle implementation
+does not consistently consume per-species surface tension. H2O and LD-Chem
+species with zero reference density likewise keep their complete LD-Chem
+definitions; H2O is re-equilibrated at the scenario's initial saturation ratio
+and temperature.
+
+Supplying `aero_species` does not expand LD-Chem's accepted species namespace.
+Each initial name must still exist in the selected LD-Chem species data,
+preserving rejection of typos and unsupported species. part2pop aliases are safe
+when its builder resolves them to an LD-Chem name first (for example, `org`
+becomes `OC`). Species LD-Chem adds during chemistry or cocondensation continue
+to come from LD-Chem's local species data.
+
+The handoff therefore preserves the dry-particle interpretation established by
+part2pop; it does not preserve arbitrary incoming wet state or override
+LD-Chem's molar-mass or surface-tension definitions.
 
 ### Analyze and plot results
 ```python
