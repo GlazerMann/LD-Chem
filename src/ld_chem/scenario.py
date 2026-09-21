@@ -278,6 +278,15 @@ def create_parcel_scenario(
         dt=1.0, specdata_path='species_data/',
         mechanism_data_path='mechamisms/', aq_chemistry=None, 
         cocondensation=False, gas_chemistry=False, aero_species=None):
+    """Create the initial state for an adiabatic parcel simulation.
+
+    When provided, ``aero_species`` must contain one species definition per
+    ``species_masses`` column, with unique names matching ``species_names`` in
+    exact order and spelling. ``species_names`` may be 1-D or have one singleton
+    axis; ``species_masses`` must be a rectangular 2-D particle-by-species
+    array. LD-Chem imports particulate density and kappa only; molar mass,
+    surface tension, H2O, and zero-density species remain LD-Chem-owned.
+    """
 
     species_names, species_masses, initial_species = _prepare_initial_species(
         species_names, species_masses, aero_species, specdata_path
@@ -426,6 +435,15 @@ def create_les_scenario(num_concs=np.array([1e6]),
             mechanism_data_path='mechanisms/',
             condensation=True, cocondensation=False, 
             aq_chemistry=None, gas_chemistry=None, aero_species=None):
+    """Create the initial state for a trajectory-driven LES simulation.
+
+    When provided, ``aero_species`` must contain one species definition per
+    ``species_masses`` column, with unique names matching ``species_names`` in
+    exact order and spelling. ``species_names`` may be 1-D or have one singleton
+    axis; ``species_masses`` must be a rectangular 2-D particle-by-species
+    array. LD-Chem imports particulate density and kappa only; molar mass,
+    surface tension, H2O, and zero-density species remain LD-Chem-owned.
+    """
 
     species_names, species_masses, initial_species = _prepare_initial_species(
         species_names, species_masses, aero_species, specdata_path
