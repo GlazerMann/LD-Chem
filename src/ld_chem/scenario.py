@@ -101,9 +101,10 @@ def _prepare_initial_species(
     Those are the properties that determine the dry volume and effective kappa
     of a part2pop particle. LD-Chem keeps its own molar mass so this handoff
     does not silently change aqueous-chemistry or gas/particle conversion
-    semantics. Surface tension also remains LD-Chem-owned because part2pop's
-    current particle implementation does not consistently consume per-species
-    surface tension.
+    semantics. LD-Chem also retains its existing surface-tension default
+    (0.072 N/m); the part2pop per-species surface-tension value is not imported
+    because part2pop's current particle implementation does not consistently
+    consume it.
 
     Supplying definitions does not expand LD-Chem's accepted species namespace.
     Every supplied initial name must still resolve through the selected LD-Chem
@@ -229,7 +230,7 @@ def _prepare_initial_species(
                     f"aero_species[{index}] {attribute} must be a scalar "
                     "numeric value"
                 ) from exc
-            if value_array.ndim != 0:
+            if value_array.ndim != 0 or value_array.dtype.kind not in "iuf":
                 raise TypeError(
                     f"aero_species[{index}] {attribute} must be a scalar "
                     "numeric value"
@@ -284,8 +285,10 @@ def create_parcel_scenario(
     ``species_masses`` column, with unique names matching ``species_names`` in
     exact order and spelling. ``species_names`` may be 1-D or have one singleton
     axis; ``species_masses`` must be a rectangular 2-D particle-by-species
-    array. LD-Chem imports particulate density and kappa only; molar mass,
-    surface tension, H2O, and zero-density species remain LD-Chem-owned.
+    array. LD-Chem imports particulate density and kappa only. Molar mass
+    remains LD-Chem-owned, surface tension uses LD-Chem's existing 0.072 N/m
+    default, and H2O and zero-density species retain their complete LD-Chem
+    definitions.
     """
 
     species_names, species_masses, initial_species = _prepare_initial_species(
@@ -441,8 +444,10 @@ def create_les_scenario(num_concs=np.array([1e6]),
     ``species_masses`` column, with unique names matching ``species_names`` in
     exact order and spelling. ``species_names`` may be 1-D or have one singleton
     axis; ``species_masses`` must be a rectangular 2-D particle-by-species
-    array. LD-Chem imports particulate density and kappa only; molar mass,
-    surface tension, H2O, and zero-density species remain LD-Chem-owned.
+    array. LD-Chem imports particulate density and kappa only. Molar mass
+    remains LD-Chem-owned, surface tension uses LD-Chem's existing 0.072 N/m
+    default, and H2O and zero-density species retain their complete LD-Chem
+    definitions.
     """
 
     species_names, species_masses, initial_species = _prepare_initial_species(
