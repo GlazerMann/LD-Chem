@@ -373,6 +373,25 @@ def test_particulate_density_and_kappa_must_be_scalar_numeric_and_finite(attribu
             (SimpleNamespace(**values),),
         )
 
+@pytest.mark.parametrize(
+    ("attribute", "value"),
+    [
+        ("density", "1000.0"),
+        ("kappa", "0.001"),
+        ("density", True),
+        ("kappa", False),
+    ],
+)
+def test_particulate_density_and_kappa_reject_non_numeric_scalar_types(
+        attribute, value):
+    values = {"name": "OC", "density": 1000.0, "kappa": 0.001}
+    values[attribute] = value
+    with pytest.raises(TypeError, match="scalar numeric"):
+        _prepare(
+            np.array(["OC"]), np.zeros((1, 1)),
+            (SimpleNamespace(**values),),
+        )
+
 
 @pytest.mark.parametrize("density", [0.0, -1.0])
 def test_particulate_density_must_remain_positive(density):
