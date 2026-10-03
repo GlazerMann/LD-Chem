@@ -81,13 +81,25 @@ class GasReactions:
     
 def make_AqReactions(chemistry=None, mechanism_data_path="mechanisms/"):
     reaction_datafile = Path(mechanism_data_path) / "aq_reactions.dat"
-    selected_groups = None if chemistry is None else set(chemistry)
+    if chemistry is None:
+        selected_groups = None
+    elif isinstance(chemistry, str):
+        selected_groups = {chemistry}
+    else:
+        try:
+            selected_groups = set(chemistry)
+        except TypeError as exc:
+            raise TypeError(
+                "chemistry must be None, a group-name string, or an iterable "
+                "of group-name strings"
+            ) from exc
 
     def _fortran_float(value: str) -> float:
         return float(value.replace("D", "E").replace("d", "e"))
 
     reactions = []
     ids = []
+    available_groups = set()
 
     with reaction_datafile.open(encoding="utf-8") as data_file:
         # aq_reactions.dat contains a one-line header.
@@ -105,6 +117,7 @@ def make_AqReactions(chemistry=None, mechanism_data_path="mechanisms/"):
                 )
 
             reactants, products, rate, neg_Ea_R, group = fields
+            available_groups.add(group)
             if selected_groups is not None and group not in selected_groups:
                 continue
 
@@ -123,6 +136,16 @@ def make_AqReactions(chemistry=None, mechanism_data_path="mechanisms/"):
 
             ids.append(len(reactions))
             reactions.append(one_reaction)
+
+    if selected_groups is not None:
+        unknown_groups = selected_groups - available_groups
+        if unknown_groups:
+            unknown = ", ".join(sorted(unknown_groups))
+            available = ", ".join(sorted(available_groups))
+            raise ValueError(
+                f"Unknown aqueous reaction group(s): {unknown}. "
+                f"Available groups: {available}."
+            )
 
     return AqueousReactions(
         reactions=tuple(reactions),

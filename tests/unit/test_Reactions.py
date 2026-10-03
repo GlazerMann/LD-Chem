@@ -194,6 +194,25 @@ def test_make_aq_reactions():
         assert isinstance(reaction.rate0, float)
         assert isinstance(reaction.neg_Ea_R, float)
 
+
+def test_make_aq_reactions_accepts_single_group_name_string():
+    mechanisms_path = Path(__file__).parent.parent.parent / "src" / "ld_chem" / "mechanisms"
+    aq_reactions = make_AqReactions(
+        chemistry="sulfate",
+        mechanism_data_path=str(mechanisms_path) + "/",
+    )
+    assert len(aq_reactions.reactions) > 0
+
+
+def test_make_aq_reactions_rejects_unknown_group():
+    mechanisms_path = Path(__file__).parent.parent.parent / "src" / "ld_chem" / "mechanisms"
+    with pytest.raises(ValueError, match=r"Unknown aqueous reaction group.*sulfatee"):
+        make_AqReactions(
+            chemistry=["sulfatee"],
+            mechanism_data_path=str(mechanisms_path) + "/",
+        )
+
+
 def test_make_aq_reactions_empty():
     """Test creation of empty AqueousReactions."""
     # Path to mechanisms directory from test file location
