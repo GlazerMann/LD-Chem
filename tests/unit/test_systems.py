@@ -120,6 +120,3 @@ def test_update_air_rejects_nonpositive_dt_for_condensation_feedback():
             feedbacks=Feedbacks(dwc_dt=1.0e-6),
             dt=0.0,
         )
-
-
-
