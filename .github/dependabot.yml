@@ -20,24 +20,10 @@ updates:
           - "minor"
           - "patch"
 
-  # Keep Python dependencies current while avoiding large catch-all
-  # pull requests that mix major scientific-library upgrades together.
-  - package-ecosystem: "pip"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-
-    cooldown:
-      default-days: 5
-      semver-major-days: 30
-      semver-minor-days: 7
-      semver-patch-days: 3
-
-    groups:
-      python-minor-patch:
-        applies-to: "version-updates"
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
+  # Python version updates are intentionally not configured here yet.
+  # pyproject.toml currently leaves most runtime dependencies unconstrained and
+  # the repository has no Python lock/constraints file, so there is no stable
+  # declared version for Dependabot to advance. Re-enable the pip ecosystem
+  # after the project adopts explicit dependency bounds or a reviewed lockfile.
+  # Keep scientific runtime libraries individually reviewable rather than
+  # grouping unrelated numerical-library upgrades into one pull request.
