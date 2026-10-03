@@ -87,7 +87,8 @@ class LagrangianElementDriver:
 
 def create_parcel_scenario(
         num_concs = np.array([1.0e6]), pHs=np.array([7.0]),
-        species_names=np.array(['NaCl']), species_masses=np.array([2.4e-25]),
+        species_names=np.array(['SO4', 'H2O']),
+        species_masses=np.array([[2.4e-25, 0.0]]),
         updraft_velocity=1.0, S0=0.85, P0=101325, T0=298,
         z_start=0.0,z_end=1000, gas_names=None, gas_concs=None, 
         dt=1.0, specdata_path='species_data/',
@@ -221,8 +222,8 @@ def create_parcel_scenario(
 
 
 def create_les_scenario(num_concs=np.array([1e6]),
-            pHs=np.array([7.0]),species_names=np.array(['NaCl']),
-            species_masses=np.array([2.4e-25]),
+            pHs=np.array([7.0]),species_names=np.array(['SO4', 'H2O']),
+            species_masses=np.array([[2.4e-25, 0.0]]),
             trajectory_data=None,
             specdata_path='species_data/',
             mechanism_data_path='mechanisms/',
