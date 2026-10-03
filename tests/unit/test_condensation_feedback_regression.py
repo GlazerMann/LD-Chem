@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
+import ld_chem.constants as constants
+import ld_chem.processes.air_thermo as air_thermo
 import ld_chem.systems as systems
 from ld_chem.systems import Feedbacks, Processes
 
@@ -60,5 +63,44 @@ def test_equivalent_condensed_mass_change_is_timestep_invariant():
         [quarter_second.T, quarter_second.S, quarter_second.wv],
         rtol=1.0e-9,
         atol=1.0e-11,
+    )
+
+
+def test_condensation_rate_matches_independent_mass_and_energy_tendencies():
+    """dstate_dt must interpret its condensation input as kg m^-3 s^-1."""
+    temperature = 298.0
+    pressure = 101325.0
+    saturation = 1.0
+    state = np.array(
+        [
+            0.0,
+            temperature,
+            pressure,
+            saturation,
+            air_thermo.S_to_wv(saturation, temperature, pressure),
+        ]
+    )
+    condensed_water_rate = 2.0e-6
+
+    derivative = air_thermo.dstate_dt(
+        state,
+        0.0,
+        condensed_water_rate,
+    )
+
+    _, rho_air, _ = air_thermo.compute_thermo_props(
+        temperature,
+        pressure,
+        saturation,
+    )
+    expected_mixing_ratio_rate = condensed_water_rate / rho_air
+
+    # With zero updraft, the independently derived vapor and latent-heating
+    # tendencies contain only the supplied condensation rate.
+    assert derivative[0] == pytest.approx(0.0)
+    assert derivative[2] == pytest.approx(0.0)
+    assert derivative[4] == pytest.approx(-expected_mixing_ratio_rate)
+    assert derivative[1] == pytest.approx(
+        constants.L * expected_mixing_ratio_rate / constants.Cp
     )
 
