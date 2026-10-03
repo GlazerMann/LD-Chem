@@ -30,3 +30,17 @@ def test_retrieve_gas_species_reports_invalid_numeric_context(tmp_path: Path):
         match=r"Invalid numeric value in gas species 'SO2'.*:1",
     ):
         retrieve_gas_species("SO2", specdata_path=tmp_path)
+
+
+def test_retrieve_gas_species_rejects_duplicate_exact_name(tmp_path: Path):
+    (tmp_path / "gas_data.dat").write_text(
+        "SO2 0.11 64d-3 1.4d0 2.9d3\n"
+        "SO2 0.12 64d-3 1.5d0 3.0d3\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"Duplicate gas species entry for 'SO2'.*lines 1 and 2",
+    ):
+        retrieve_gas_species("SO2", specdata_path=tmp_path)

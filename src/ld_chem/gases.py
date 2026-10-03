@@ -52,7 +52,10 @@ class TraceGasPopulation:
 
 def retrieve_gas_species(name, specdata_path='../species_data/'):
     gas_datafile = Path(specdata_path) / "gas_data.dat"
-    with gas_datafile.open() as data_file:
+    matched_species = None
+    matched_line_number = None
+
+    with gas_datafile.open(encoding="utf-8") as data_file:
         for line_number, line in enumerate(data_file, start=1):
             fields = line.split()
             if not fields or fields[0] != name:
@@ -63,9 +66,16 @@ def retrieve_gas_species(name, specdata_path='../species_data/'):
                     f"{gas_datafile} at line {line_number}: expected 5 fields, "
                     f"found {len(fields)}."
                 )
+            if matched_species is not None:
+                raise ValueError(
+                    f"Duplicate gas species entry for '{name}' in "
+                    f"{gas_datafile}: lines {matched_line_number} and "
+                    f"{line_number}."
+                )
+
             _, alpha, molar_mass, H0, H_exp = fields
             try:
-                return GasSpecies(
+                matched_species = GasSpecies(
                     name=name,
                     alpha=float(alpha),
                     molar_mass=float(
@@ -79,6 +89,10 @@ def retrieve_gas_species(name, specdata_path='../species_data/'):
                     f"Invalid numeric value in gas species '{name}' at "
                     f"{gas_datafile}:{line_number}."
                 ) from exc
+            matched_line_number = line_number
+
+    if matched_species is not None:
+        return matched_species
 
     raise ValueError(
         f"Unknown gas species '{name}': no matching entry found in "
