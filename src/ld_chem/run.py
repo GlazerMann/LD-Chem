@@ -152,7 +152,6 @@ def simulate_les_trajectory(
     else:
         with open(progress_filename, 'a') as f:
             print('Solving time:', round(time.time() - runtime0, 2), 'seconds', file=f)
-            f.close()
     return
     
 
@@ -421,5 +420,4 @@ def restart_trajectory(trajectory_filename='trajectory_output.pkl',
     else:
         with open(progress_filename, 'a') as f:
             print('Solving time:', round(time.time() - runtime0, 2), 'seconds', file=f)
-            f.close()
     return
