@@ -149,7 +149,7 @@ def S_to_wv(S,T,P):
     
     # Vapor pressure from saturation ratio
     e = S*e_sat
-    wv = e*0.622/(p_hPa - e_sat) 
+    wv = e*0.622/(p_hPa - e)
     
     return wv
 

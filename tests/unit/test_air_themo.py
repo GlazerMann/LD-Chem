@@ -54,6 +54,18 @@ def test_S_to_wv():
     assert wv_cold > 0
 
 
+@pytest.mark.parametrize("S, T, P", [(0.2, 298.15, 101325.0),
+                                    (0.7, 280.0, 80000.0),
+                                    (1.1, 305.0, 95000.0)])
+def test_S_to_wv_uses_actual_vapor_pressure_in_denominator(S, T, P):
+    T_C = T - 273.15
+    e_sat_hPa = 6.1094 * np.exp(17.625 * T_C / (243.04 + T_C))
+    e_hPa = S * e_sat_hPa
+    expected = 0.622 * e_hPa / (P / 100.0 - e_hPa)
+
+    assert np.isclose(S_to_wv(S, T, P), expected, rtol=1e-12)
+
+
 def test_H2O_gas_conc():
     """Test water vapor gas concentration calculation."""
     S = 1.0
