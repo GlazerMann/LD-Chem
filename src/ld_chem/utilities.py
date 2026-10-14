@@ -9,6 +9,7 @@ import numpy as np
 import sys
 from ld_chem.processes import water_uptake
 from ld_chem.processes.air_thermo import H2O_gas_conc
+import ld_chem.constants as c
 
 def check_gas_condensation(ParcelState_0, ParcelState_Next, gas_feedback):
     for ii, (name, dc_dt) in enumerate(zip(gas_feedback.names, gas_feedback.dc_dts)):
@@ -43,12 +44,25 @@ def check_mass_balance(ParcelState_0, ParcelState_Next):
 
 
 def check_gas_chemistry(ParcelState_0, ParcelState_Next):
+    # Trace gases are stored in ppb, while H2O is tracked separately through
+    # saturation ratio. Convert both to mass concentration so reactions that
+    # produce or consume water are included in the mass check.
     Mass_0 = 0.0
+    air_molar_conc_0 = ParcelState_0.P/(c.R*ParcelState_0.T)
     for gas, conc in zip(ParcelState_0.gas.gases, ParcelState_0.gas.concs):
-        Mass_0 += 1e-9*conc*gas.molar_mass # kg/m^3
+        Mass_0 += 1e-9*conc*air_molar_conc_0*gas.molar_mass
+    Mass_0 += H2O_gas_conc(
+        ParcelState_0.S, ParcelState_0.T, ParcelState_0.P
+    ) * c.Mw
+
     Mass_next = 0.0
+    air_molar_conc_next = ParcelState_Next.P/(c.R*ParcelState_Next.T)
     for gas, conc in zip(ParcelState_Next.gas.gases, ParcelState_Next.gas.concs):
-        Mass_next += 1e-9*conc*gas.molar_mass # kg/m^3
+        Mass_next += 1e-9*conc*air_molar_conc_next*gas.molar_mass
+    Mass_next += H2O_gas_conc(
+        ParcelState_Next.S, ParcelState_Next.T, ParcelState_Next.P
+    ) * c.Mw
+
     check = np.isclose(Mass_0, Mass_next, atol=10**(np.round(np.log10(abs(Mass_0))-5.0, 0)))
     if not check:
         raise ValueError('Mass not conserved in gas chemistry module!')
