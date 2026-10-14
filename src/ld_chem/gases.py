@@ -8,6 +8,7 @@ Created on Fri Sep 27 13:39:14 2024
 from dataclasses import dataclass
 from typing import Tuple
 from pathlib import Path
+import math
 import numpy as np
 import sys
 
@@ -75,14 +76,19 @@ def retrieve_gas_species(name, specdata_path='../species_data/'):
 
             _, alpha, molar_mass, H0, H_exp = fields
             try:
-                matched_species = GasSpecies(
-                    name=name,
-                    alpha=float(alpha),
-                    molar_mass=float(
+                numeric_values = {
+                    "alpha": float(alpha),
+                    "molar_mass": float(
                         molar_mass.replace("D", "E").replace("d", "e")
                     ),
-                    H0=float(H0.replace("D", "E").replace("d", "e")),
-                    H_exp=float(H_exp.replace("D", "E").replace("d", "e")),
+                    "H0": float(H0.replace("D", "E").replace("d", "e")),
+                    "H_exp": float(H_exp.replace("D", "E").replace("d", "e")),
+                }
+                if not all(math.isfinite(value) for value in numeric_values.values()):
+                    raise ValueError("values must be finite")
+                matched_species = GasSpecies(
+                    name=name,
+                    **numeric_values,
                 )
             except ValueError as exc:
                 raise ValueError(

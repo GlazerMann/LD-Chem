@@ -44,3 +44,28 @@ def test_retrieve_gas_species_rejects_duplicate_exact_name(tmp_path: Path):
         match=r"Duplicate gas species entry for 'SO2'.*lines 1 and 2",
     ):
         retrieve_gas_species("SO2", specdata_path=tmp_path)
+
+
+def test_retrieve_gas_species_loads_shipped_oxygen():
+    species_data = Path(__file__).parents[2] / "src" / "ld_chem" / "species_data"
+
+    species = retrieve_gas_species("O2", specdata_path=species_data)
+
+    assert species.name == "O2"
+    assert species.molar_mass == pytest.approx(0.032)
+
+
+@pytest.mark.parametrize("value", ["nan", "inf", "-inf"])
+def test_retrieve_gas_species_rejects_non_finite_numeric_values(
+    tmp_path: Path, value: str
+):
+    (tmp_path / "gas_data.dat").write_text(
+        f"SO2 0.11 64d-3 {value} 2.9d3\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid numeric value in gas species 'SO2'.*:1",
+    ):
+        retrieve_gas_species("SO2", specdata_path=tmp_path)
