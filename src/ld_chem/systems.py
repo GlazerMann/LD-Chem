@@ -328,9 +328,18 @@ def air_from_les(ParcelState_0, processes, t2,
                     
         # update the gas concentrations
         if ParcelState_0.gas:
+            H2O_x = H2O_mole_fraction(
+                ParcelState_Next.S, ParcelState_Next.T, ParcelState_Next.P)
             for ii, (gas) in enumerate(ParcelState_0.gas.gases):
-                if gas.name in driver.TraceGas_data.keys():
+                if (driver.TraceGas_data is not None
+                        and gas.name in driver.TraceGas_data):
                     ParcelState_Next.gas.concs[ii] = np.interp(t2, driver.t_data, driver.TraceGas_data[gas.name])
+                elif gas.name == 'N2':
+                    ParcelState_Next.gas.concs[ii] = 1e9*0.7808*(1-H2O_x)
+                elif gas.name == 'O2':
+                    ParcelState_Next.gas.concs[ii] = 1e9*0.2095*(1-H2O_x)
+                else:
+                    ParcelState_Next.gas.concs[ii] = 0.0
     return ParcelState_Next
 
 
