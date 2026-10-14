@@ -9,6 +9,7 @@ Created on Mon Sep 30 13:58:24 2024
 from dataclasses import dataclass
 from typing import Tuple
 from pathlib import Path
+import math
 import numpy as np
 import sys
 import ld_chem.constants as c
@@ -94,8 +95,11 @@ def make_AqReactions(chemistry=None, mechanism_data_path="mechanisms/"):
                 "of group-name strings"
             ) from exc
 
-    def _fortran_float(value: str) -> float:
-        return float(value.replace("D", "E").replace("d", "e"))
+    def _fortran_float(value: str, field: str, line_number: int) -> float:
+        parsed = float(value.replace("D", "E").replace("d", "e"))
+        if not math.isfinite(parsed):
+            raise ValueError(f"Non-finite {field} value")
+        return parsed
 
     reactions = []
     ids = []
@@ -125,8 +129,8 @@ def make_AqReactions(chemistry=None, mechanism_data_path="mechanisms/"):
                 one_reaction = AqReaction(
                     reactants=reactants.split(","),
                     products=products.split(","),
-                    rate0=_fortran_float(rate),
-                    neg_Ea_R=_fortran_float(neg_Ea_R),
+                    rate0=_fortran_float(rate, "rate", line_number),
+                    neg_Ea_R=_fortran_float(neg_Ea_R, "activation energy", line_number),
                 )
             except ValueError as exc:
                 raise ValueError(
@@ -171,8 +175,11 @@ def make_GasReactions(chemistry=None, mechanism_data_path="mechanisms/"):
         "HO2_water_enhancement",
     }
 
-    def _fortran_float(value: str) -> float:
-        return float(value.replace("D", "E").replace("d", "e"))
+    def _fortran_float(value: str, field: str, line_number: int) -> float:
+        parsed = float(value.replace("D", "E").replace("d", "e"))
+        if not math.isfinite(parsed):
+            raise ValueError(f"Non-finite {field} value")
+        return parsed
 
     reactions = []
     ids = []
@@ -213,9 +220,9 @@ def make_GasReactions(chemistry=None, mechanism_data_path="mechanisms/"):
                 one_reaction = GasReaction(
                     reactants=reactants.split(","),
                     products=products.split(","),
-                    rate0=_fortran_float(rate),
-                    high_P_limit=_fortran_float(highP_limit),
-                    T_dependence=_fortran_float(T_dependence),
+                    rate0=_fortran_float(rate, "rate", line_number),
+                    high_P_limit=_fortran_float(highP_limit, "high-pressure limit", line_number),
+                    T_dependence=_fortran_float(T_dependence, "temperature dependence", line_number),
                     form=form,
                 )
             except ValueError as exc:

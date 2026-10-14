@@ -5,6 +5,7 @@ simulation scenarios.
 """
 
 from dataclasses import dataclass
+from pathlib import Path
 import numpy as np
 from .reactions import make_AqReactions, make_GasReactions
 from .particles import retrieve_one_species
@@ -14,6 +15,15 @@ from scipy.optimize import fminbound
 from .processes.air_thermo import H2O_mole_fraction
 import ld_chem.constants as c
 from typing import Optional
+
+
+_PACKAGE_DATA = Path(__file__).resolve().parent
+
+
+def _scenario_data_path(path, directory):
+    """Resolve package data defaults while preserving explicit user paths."""
+    resolved = Path(path) if path is not None else _PACKAGE_DATA / directory
+    return str(resolved) + "/"
 
 @dataclass
 class LagrangianElement: 
@@ -90,9 +100,12 @@ def create_parcel_scenario(
         species_names=np.array(['NaCl']), species_masses=np.array([2.4e-25]),
         updraft_velocity=1.0, S0=0.85, P0=101325, T0=298,
         z_start=0.0,z_end=1000, gas_names=None, gas_concs=None, 
-        dt=1.0, specdata_path='species_data/',
-        mechanism_data_path='mechamisms/', aq_chemistry=None, 
+        dt=1.0, specdata_path=None,
+        mechanism_data_path=None, aq_chemistry=None,
         cocondensation=False, gas_chemistry=False):
+
+    specdata_path = _scenario_data_path(specdata_path, "species_data")
+    mechanism_data_path = _scenario_data_path(mechanism_data_path, "mechanisms")
 
     # load in the gas reactions
     if gas_chemistry:
@@ -224,10 +237,13 @@ def create_les_scenario(num_concs=np.array([1e6]),
             pHs=np.array([7.0]),species_names=np.array(['NaCl']),
             species_masses=np.array([2.4e-25]),
             trajectory_data=None,
-            specdata_path='species_data/',
-            mechanism_data_path='mechanisms/',
+            specdata_path=None,
+            mechanism_data_path=None,
             condensation=True, cocondensation=False, 
             aq_chemistry=None, gas_chemistry=None):
+
+    specdata_path = _scenario_data_path(specdata_path, "species_data")
+    mechanism_data_path = _scenario_data_path(mechanism_data_path, "mechanisms")
     
     # load the gas data
     try:
