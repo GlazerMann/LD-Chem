@@ -32,6 +32,22 @@ class Feedbacks:
     # dwi: float = 0. # change in ice mass, kg ice / m^3 air
     gases: Tuple[GasFeedback, ...] = None  # change trace gases, ppb
 
+
+def account_for_implicit_aqueous_water(reference_masses, updated_masses, water_idx):
+    """Balance aqueous solute mass changes against the liquid-water solvent.
+
+    The aqueous mechanism omits solvent water from kinetic stoichiometry. Keep
+    the rate laws unchanged, but apply the resulting mass exchange to H2O.
+    """
+    balanced_masses = np.array(updated_masses, copy=True)
+    mass_change = (np.sum(balanced_masses, axis=1)
+                   - np.sum(reference_masses, axis=1))
+    water_mass = balanced_masses[:, water_idx] - mass_change
+    if np.any(water_mass < 0.0):
+        raise ValueError("Aqueous chemistry consumes more water than is available")
+    balanced_masses[:, water_idx] = water_mass
+    return balanced_masses
+
 def update_state(t1, t2, ParcelState_0, processes, dt,
         accom=1.,radius_scale='lin', mechanism_data_path='../mechanisms/', 
         aq_reactions=None, gas_reactions=None, rtol=1e-10, atol=1e-10):
@@ -154,6 +170,16 @@ def update_particle_population(
         for ii, (species) in enumerate(ParcelState_Next.particles.species):
             molar_mass=species.molar_mass
             ParcelState_Next.particles.spec_masses[:,ii] = X_next[:,ii]*water_volumes*molar_mass # kg
+
+        # Mechanism rows express aqueous solutes and omit solvent water from
+        # their kinetic stoichiometry. Account for that implicit exchange in
+        # the tracked liquid-water mass without changing reaction rates.
+        water_idx = ParcelState_Next.particles.get_species_idx("H2O")
+        ParcelState_Next.particles.spec_masses = account_for_implicit_aqueous_water(
+            ParcelState_PreChem.particles.spec_masses,
+            ParcelState_Next.particles.spec_masses,
+            water_idx,
+        )
         
         # check mass balance
         check_mass_balance(ParcelState_PreChem, ParcelState_Next)
