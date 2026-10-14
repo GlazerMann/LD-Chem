@@ -58,3 +58,19 @@ def test_retrieve_one_species_rejects_duplicate_matching_rows(tmp_path: Path):
         match=r"Duplicate aerosol species entry.*lines 1 and 3",
     ):
         retrieve_one_species("SO4", specdata_path=tmp_path)
+
+
+@pytest.mark.parametrize("value", ["nan", "inf", "-inf"])
+def test_retrieve_one_species_rejects_non_finite_numeric_values(
+    tmp_path: Path, value: str
+):
+    (tmp_path / "aero_data.dat").write_text(
+        f"SO4 1800 0 96d-3 {value}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid numeric value in aerosol species 'SO4'.*:1",
+    ):
+        retrieve_one_species("SO4", specdata_path=tmp_path)

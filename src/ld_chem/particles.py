@@ -6,6 +6,7 @@ and particle populations
 
 import sys, warnings
 import numpy as np
+import math
 from dataclasses import dataclass
 from typing import Tuple, Callable
 from pathlib import Path
@@ -49,13 +50,18 @@ def retrieve_one_species(name, specdata_path='species_data/', surface_tension=0.
 
             name_in_file, density, _ions_in_solution, molar_mass, kappa = fields
             try:
-                matched_species = AerosolSpecies(
-                    name=name_in_file,
-                    density=float(density),
-                    kappa=float(kappa),
-                    molar_mass=float(
+                numeric_values = {
+                    "density": float(density),
+                    "kappa": float(kappa),
+                    "molar_mass": float(
                         molar_mass.replace("D", "E").replace("d", "e")
                     ),
+                }
+                if not all(math.isfinite(value) for value in numeric_values.values()):
+                    raise ValueError("values must be finite")
+                matched_species = AerosolSpecies(
+                    name=name_in_file,
+                    **numeric_values,
                     surface_tension=surface_tension,
                 )
             except ValueError as exc:
