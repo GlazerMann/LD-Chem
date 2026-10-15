@@ -38,6 +38,10 @@ def account_for_implicit_aqueous_water(reference_masses, updated_masses, water_i
 
     The aqueous mechanism omits solvent water from kinetic stoichiometry. Keep
     the rate laws unchanged, but apply the resulting mass exchange to H2O.
+
+    This enforces total tracked mass only. It does not check elemental or
+    charge balance, so it can conceal incorrect reaction stoichiometry; those
+    checks must be performed independently.
     """
     balanced_masses = np.array(updated_masses, copy=True)
     mass_change = (np.sum(balanced_masses, axis=1)
