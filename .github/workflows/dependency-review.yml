@@ -1,5 +1,7 @@
 name: Dependency review
 
+# Every pull request targeting main starts this workflow. The action examines
+# dependency changes in each pull request; dependency changes do not gate the trigger.
 on:
   pull_request:
     branches: [main]
