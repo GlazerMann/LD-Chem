@@ -44,9 +44,15 @@ def check_mass_balance(ParcelState_0, ParcelState_Next):
 
 
 def check_gas_chemistry(ParcelState_0, ParcelState_Next):
-    # Trace gases are stored in ppb, while H2O is tracked separately through
-    # saturation ratio. Gas chemistry integrates at ParcelState_0's T and P,
-    # so both states must use those same conditions for this comparison.
+    """Check total tracked gas-plus-water mass at fixed reference conditions.
+
+    The ppb values are interpreted as mole fractions of total air through
+    P / (R T); water vapor is added separately from saturation ratio. This
+    checks mass conservation only and does not validate elemental or charge
+    balance in the mechanism.
+    """
+    # Gas chemistry integrates at ParcelState_0's T and P, so both states use
+    # those same conditions for this comparison.
     reference_T = ParcelState_0.T
     reference_P = ParcelState_0.P
     air_molar_conc = reference_P / (c.R * reference_T)
