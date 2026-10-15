@@ -330,6 +330,9 @@ def air_from_les(ParcelState_0, processes, t2,
         if ParcelState_0.gas:
             H2O_x = H2O_mole_fraction(
                 ParcelState_Next.S, ParcelState_Next.T, ParcelState_Next.P)
+            # Explicit trajectory values take precedence. Missing entries (or
+            # a missing mapping) use dry-air N2/O2 mole fractions scaled by
+            # (1 - H2O_x); other omitted tracked gases retain the zero default.
             for ii, (gas) in enumerate(ParcelState_0.gas.gases):
                 if (driver.TraceGas_data is not None
                         and gas.name in driver.TraceGas_data):
