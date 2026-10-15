@@ -22,14 +22,46 @@ def _make_time_grid(t_start, t_end, dt):
     """
     if not np.isfinite(dt) or dt <= 0.0:
         raise ValueError("dt must be a finite positive number")
+    if not np.isfinite(t_start) or not np.isfinite(t_end):
+        raise ValueError("simulation start and end times must be finite")
     if t_end < t_start:
         raise ValueError("simulation end time must not precede start time")
 
     duration = t_end - t_start
+    if not np.isfinite(duration):
+        raise ValueError("simulation duration must be finite")
     intervals = int(np.ceil(duration / dt))
     times = np.minimum(t_start + np.arange(intervals + 1) * dt, t_end)
     times[-1] = t_end
     return times
+
+
+def _parcel_end_time(z_start, z_end, updraft_velocity):
+    """Convert parcel height bounds to a validated elapsed time."""
+    try:
+        z_start = float(z_start)
+        z_end = float(z_end)
+        updraft_velocity = float(updraft_velocity)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(
+            "parcel heights and updraft_velocity must be finite numbers"
+        ) from exc
+
+    if not np.isfinite(z_start) or not np.isfinite(z_end):
+        raise ValueError("parcel heights must be finite")
+    if not np.isfinite(updraft_velocity):
+        raise ValueError("updraft_velocity must be finite")
+    if updraft_velocity == 0.0:
+        raise ValueError("updraft_velocity must be nonzero")
+
+    try:
+        end_time = (z_end - z_start) / updraft_velocity
+    except OverflowError as exc:
+        raise ValueError("parcel end time must be finite") from exc
+    if not np.isfinite(end_time):
+        raise ValueError("parcel end time must be finite")
+    return end_time
+
 
 def simulate_les_trajectory(
     aero_spec_names, aero_spec_masses, num_concs, pHs, 
@@ -186,6 +218,8 @@ def simulate_parcel(
     mechanism_data_path=None, condensation = True, 
     cocondensation = False, aq_chemistry = False, gas_chemistry = False):
 
+    t_end = _parcel_end_time(z_start, z_end, updraft_velocity)
+
     if not mechanism_data_path:
         if print_to_screen:
             print('WARNING: No mechanism path specified; using default mechanisms in '+str(Path(__file__).resolve().parent)+"/mechanisms/")
@@ -223,7 +257,6 @@ def simulate_parcel(
 
     runtime0 = time.time()
     t_start=0.0
-    t_end=(z_end-z_start)/updraft_velocity
     t_eval = _make_time_grid(t_start, t_end, dt)
     last_written=t_start
     counter=0
@@ -339,7 +372,7 @@ def restart_trajectory(trajectory_filename='trajectory_output.pkl',
         z_start=data['z_start']
         z_end=data['z_end']
         updraft_velocity=data['updraft_velocity']
-        t_end=(z_end-z_start)/updraft_velocity
+        t_end=_parcel_end_time(z_start, z_end, updraft_velocity)
         trajectory_type='parcel'
 
     f = open(status_filename, 'w')

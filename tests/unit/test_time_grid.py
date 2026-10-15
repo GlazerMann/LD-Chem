@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 
-from ld_chem.run import _make_time_grid
+import ld_chem.run as run_module
+from ld_chem.run import _make_time_grid, _parcel_end_time
 
 
 def test_time_grid_reaches_end_with_short_final_interval():
@@ -28,3 +29,37 @@ def test_time_grid_rejects_nonpositive_or_nonfinite_dt(dt):
 def test_time_grid_rejects_end_before_start():
     with pytest.raises(ValueError, match="end time must not precede start time"):
         _make_time_grid(2.0, 1.0, 1.0)
+
+@pytest.mark.parametrize(
+    ("t_start", "t_end"),
+    [(np.nan, 1.0), (0.0, np.nan), (np.inf, 1.0), (0.0, -np.inf)],
+)
+def test_time_grid_rejects_nonfinite_bounds(t_start, t_end):
+    with pytest.raises(ValueError, match="start and end times must be finite"):
+        _make_time_grid(t_start, t_end, 1.0)
+
+
+def test_time_grid_rejects_nonfinite_duration():
+    with np.errstate(over="ignore"):
+        with pytest.raises(ValueError, match="duration must be finite"):
+            _make_time_grid(-1e308, 1e308, 1.0)
+
+
+def test_parcel_end_time_uses_height_difference_and_updraft_velocity():
+    assert _parcel_end_time(10.0, 20.0, 2.0) == 5.0
+
+
+@pytest.mark.parametrize("updraft_velocity", [0.0, np.inf, -np.inf, np.nan])
+def test_parcel_end_time_rejects_zero_or_nonfinite_updraft(updraft_velocity):
+    with pytest.raises(ValueError, match="updraft_velocity"):
+        _parcel_end_time(0.0, 1000.0, updraft_velocity)
+
+def test_simulate_parcel_rejects_zero_updraft_before_scenario_setup(monkeypatch):
+    def unexpected_scenario_creation(**kwargs):
+        pytest.fail("scenario creation should not run for zero updraft")
+
+    monkeypatch.setattr(
+        run_module, "create_parcel_scenario", unexpected_scenario_creation
+    )
+    with pytest.raises(ValueError, match="updraft_velocity must be nonzero"):
+        run_module.simulate_parcel([], [], [], [], updraft_velocity=0.0)
