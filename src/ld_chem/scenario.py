@@ -94,7 +94,11 @@ def create_parcel_scenario(
         dt=1.0, specdata_path='species_data/',
         mechanism_data_path='mechamisms/', aq_chemistry=None, 
         cocondensation=False, gas_chemistry=False):
+    """Build a parcel scenario.
 
+    The default species are SO4 and H2O. Their default mass array has shape
+    (1, 2): one particle-population row and one column per species.
+    """
     # load in the gas reactions
     if gas_chemistry:
         gas_reactions = make_GasReactions(mechanism_data_path=mechanism_data_path)
@@ -229,7 +233,12 @@ def create_les_scenario(num_concs=np.array([1e6]),
             mechanism_data_path='mechanisms/',
             condensation=True, cocondensation=False, 
             aq_chemistry=None, gas_chemistry=None):
-    
+    """Build an LES scenario.
+
+    The default species are SO4 and H2O. Their default mass array has shape
+    (1, 2): one particle-population row and one column per species.
+    """
+
     # load the gas data
     try:
         gas_data = trajectory_data['gas']

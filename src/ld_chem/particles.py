@@ -25,6 +25,12 @@ class AerosolSpecies:
     surface_tension: float
 
 def retrieve_one_species(name, specdata_path='species_data/', surface_tension=0.072):
+    """Read one species from specdata_path / "aero_data.dat".
+
+    specdata_path accepts strings and path-like objects. Relative paths,
+    including the default species_data/, are resolved from the process
+    working directory; a trailing path separator is not required.
+    """
     aero_datafile = Path(specdata_path) / "aero_data.dat"
     matched_species = None
     matched_line_number = None
