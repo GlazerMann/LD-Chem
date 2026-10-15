@@ -21,7 +21,11 @@ _PACKAGE_DATA = Path(__file__).resolve().parent
 
 
 def _scenario_data_path(path, directory):
-    """Resolve package data defaults while preserving explicit user paths."""
+    """Resolve an omitted data path relative to this package.
+
+    Explicit paths are preserved; an explicit relative path is interpreted
+    relative to the process working directory.
+    """
     resolved = Path(path) if path is not None else _PACKAGE_DATA / directory
     return str(resolved) + "/"
 

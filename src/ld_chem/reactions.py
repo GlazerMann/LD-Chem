@@ -81,6 +81,14 @@ class GasReactions:
     ids: Tuple[int, ...]
     
 def make_AqReactions(chemistry=None, mechanism_data_path="mechanisms/"):
+    """Load aqueous reactions from aq_reactions.dat.
+
+    chemistry=None loads every group; a string selects one group; an iterable
+    selects the named groups, and an empty iterable selects none. Unknown
+    group names raise ValueError. The direct-loader default path mechanisms/
+    is relative to the process working directory. Scenario constructors
+    resolve omitted paths relative to the installed package.
+    """
     reaction_datafile = Path(mechanism_data_path) / "aq_reactions.dat"
     if chemistry is None:
         selected_groups = None
@@ -157,6 +165,14 @@ def make_AqReactions(chemistry=None, mechanism_data_path="mechanisms/"):
     )
 
 def make_GasReactions(chemistry=None, mechanism_data_path="mechanisms/"):
+    """Load all gas reactions from gas_reactions.dat.
+
+    Gas mechanisms have no group column, so only chemistry=None is supported;
+    any non-None selector raises NotImplementedError. The direct-loader
+    default path mechanisms/ is relative to the process working directory.
+    Scenario constructors resolve omitted paths relative to the installed
+    package.
+    """
     if chemistry is not None:
         raise NotImplementedError(
             "make_GasReactions() received chemistry=%r, but group-based "
