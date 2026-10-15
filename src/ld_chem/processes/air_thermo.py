@@ -139,7 +139,11 @@ def compute_thermo_props(T, P, S):
 
 @nb.njit()
 def S_to_wv(S,T,P):
-    # saturation ratio to mixing ratio [mols h2o/mol air]
+    """Return water-vapor mass mixing ratio in kg H2O per kg dry air.
+
+    S is dimensionless, T is kelvin, and P is pascal. The formula assumes
+    the vapor pressure S * e_sat is below the total pressure.
+    """
     
     p_hPa = P/100. # convert Pa to hPa
     T_C = T-273.15 # Convert from kelvin to degrees C
@@ -149,6 +153,7 @@ def S_to_wv(S,T,P):
     
     # Vapor pressure from saturation ratio
     e = S*e_sat
+    # Mass mixing ratio [kg H2O / kg dry air].
     wv = e*0.622/(p_hPa - e)
     
     return wv
