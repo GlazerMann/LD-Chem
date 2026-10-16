@@ -219,9 +219,24 @@ There are two ways to define custom aqueous- or gas-phase chemical mechanisms:
 **Option 1: Edit the default mechanism files**
 
 Modify the default mechanism files in `src/ld_chem/mechanisms/`:
-1. Edit `aq_reactions.dat` and/or `gas_reactions.dat` directly
-2. Add or remove reactions and assign them to group names
-3. Include the group names in a list assigned to the `aq_chemistry` and/or `gas_chemistry` arguments when running a simulation
+1. Edit `aq_reactions.dat` and/or `gas_reactions.dat` directly.
+2. For aqueous reactions, add or remove rows and assign them to group names.
+3. Select aqueous groups with `aq_chemistry`. Gas reactions have no group column; `gas_chemistry=True` enables all rows in the selected `gas_reactions.dat`.
+
+The scenario APIs perform this loading internally. Pass aqueous group names to
+`aq_chemistry` and use `gas_chemistry=True` to enable gas chemistry; do not pass
+objects returned by `make_AqReactions()` or `make_GasReactions()` to those
+scenario arguments.
+
+Direct calls to `make_GasReactions()` do not support a chemistry/group
+selector. Supplying a non-`None` `chemistry` argument raises
+`NotImplementedError`.
+
+`mechanism_data_path` is interpreted relative to the process working
+directory. From a source checkout at the repository root, the bundled mechanism
+directory is `src/ld_chem/mechanisms/`. Callers that use the reaction loaders
+directly should pass the mechanism directory explicitly instead of assuming
+that `"mechanisms/"` refers to the package's bundled data.
 
 **Option 2: Create custom mechanism files and specify the path**
 

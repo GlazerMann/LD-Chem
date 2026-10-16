@@ -95,10 +95,16 @@ simulate_parcel(
 
 **To add a new reaction:**
 
-1. Add a line to `aq_reactions.dat` or `gas_reactions.dat`
-2. Assign it to a group name (existing or new)
-3. Ensure all reactants and products exist in species data files
-4. Reference the group when loading mechanisms
+1. Add a line to `aq_reactions.dat` or `gas_reactions.dat`.
+2. Assign aqueous reactions to a group name (existing or new). Gas reactions do not have a group column.
+3. Ensure all reactants and products exist in species data files.
+4. Reference aqueous groups through `aq_chemistry`. Setting `gas_chemistry=True` loads all rows from `gas_reactions.dat`.
+
+Gas reaction selection is file-level rather than group-level. The
+`make_GasReactions()` loader therefore does not support gas reaction group
+selection: calling it with a non-`None` `chemistry` argument raises
+`NotImplementedError`. To use a different set of gas reactions, provide a
+different `gas_reactions.dat` through `mechanism_data_path`.
 
 **Example: Add new aqueous reaction**
 

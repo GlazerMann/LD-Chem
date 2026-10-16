@@ -8,6 +8,8 @@ Created on Mon Sep 30 13:58:24 2024
 
 from dataclasses import dataclass
 from typing import Tuple
+from pathlib import Path
+import math
 import numpy as np
 import sys
 import ld_chem.constants as c
@@ -75,69 +77,180 @@ class AqueousReactions:
     
 @dataclass
 class GasReactions:
-    reactions: Tuple[AqReaction, ...]
+    reactions: Tuple[GasReaction, ...]
     ids: Tuple[int, ...]
     
-def make_AqReactions(chemistry=None, mechanism_data_path='mechanisms/'):
-    reaction_datafile = mechanism_data_path + 'aq_reactions.dat'
-    Nreactions=0
-    with open(reaction_datafile) as data_file:
-        for line in data_file:
-            reactants,products,rate,dH_R,group = line.split()
-            if group in chemistry:
-                Nreactions+=1
-    if Nreactions > 0:
-        reactions = [None]*Nreactions
-        ids = [None]*Nreactions
-        ii=0
-        while ii < Nreactions:
-            with open(reaction_datafile) as data_file:
-                for line in data_file:
-                    reactants,products,rate,Ea_R,group = line.split()
-                    if group in chemistry:
-                        reactants=reactants.split(',')
-                        products=products.split(',')
-                        OneReaction = AqReaction(reactants=reactants,
-                                                 products=products,
-                                                 rate0=float(rate),
-                                                 neg_Ea_R=float(Ea_R))
-                        reactions[ii]=OneReaction
-                        ids[ii]=ii
-                        ii+=1
+def make_AqReactions(chemistry=None, mechanism_data_path="mechanisms/"):
+    """Load aqueous reactions from aq_reactions.dat.
+
+    chemistry=None loads every group; a string selects one group; an iterable
+    selects the named groups, and an empty iterable selects none. Unknown
+    group names raise ValueError. The direct-loader default path mechanisms/
+    is relative to the process working directory. Scenario constructors
+    resolve omitted paths relative to the installed package.
+    """
+    reaction_datafile = Path(mechanism_data_path) / "aq_reactions.dat"
+    if chemistry is None:
+        selected_groups = None
+    elif isinstance(chemistry, str):
+        selected_groups = {chemistry}
     else:
-        reactions = None
-        ids = None
-    return AqueousReactions(reactions=reactions, ids=ids)
+        try:
+            selected_groups = set(chemistry)
+        except TypeError as exc:
+            raise TypeError(
+                "chemistry must be None, a group-name string, or an iterable "
+                "of group-name strings"
+            ) from exc
 
+    def _fortran_float(value: str, field: str, line_number: int) -> float:
+        parsed = float(value.replace("D", "E").replace("d", "e"))
+        if not math.isfinite(parsed):
+            raise ValueError(f"Non-finite {field} value")
+        return parsed
 
+    reactions = []
+    ids = []
+    available_groups = set()
 
-def make_GasReactions(chemistry=None, mechanism_data_path='mechanisms/'):
-    reaction_datafile = mechanism_data_path + 'gas_reactions.dat'
-    Nreactions=0
-    with open(reaction_datafile) as data_file:
-        for line in data_file:
-            reactants,products,rate,highP_limit,T_dependence,form = line.split()
-            Nreactions+=1
-    Nreactions-=1 # gets rid of the header
-    if Nreactions > 0: 
-        reactions = [None]*Nreactions
-        ids = [None]*Nreactions
-        ii=0
-        while ii < Nreactions:
-            with open(reaction_datafile) as data_file:
-                for line in data_file:
-                    reactants,products,rate,highP_limit,T_dependence,form = line.split()
-                    if form in ['power', 'exp', 'troe', 'HO2_water_enhancement']:
-                        reactants=reactants.split(',')
-                        products=products.split(',')
-                        OneReaction = GasReaction(reactants=reactants,
-                                                  products=products,
-                                                  rate0=float(rate),
-                                                  high_P_limit=float(highP_limit),
-                                                  T_dependence=float(T_dependence),
-                                                  form=str(form))                        
-                        reactions[ii]=OneReaction
-                        ids[ii]=ii
-                        ii+=1 
-                        
-    return GasReactions(reactions=reactions, ids=ids)
+    with reaction_datafile.open(encoding="utf-8") as data_file:
+        # aq_reactions.dat contains a one-line header.
+        next(data_file, None)
+
+        for line_number, line in enumerate(data_file, start=2):
+            fields = line.split()
+            if not fields:
+                continue
+            if len(fields) != 5:
+                raise ValueError(
+                    f"Malformed aqueous reaction in {reaction_datafile} at "
+                    f"line {line_number}: expected 5 fields, found "
+                    f"{len(fields)}."
+                )
+
+            reactants, products, rate, neg_Ea_R, group = fields
+            available_groups.add(group)
+            if selected_groups is not None and group not in selected_groups:
+                continue
+
+            try:
+                one_reaction = AqReaction(
+                    reactants=reactants.split(","),
+                    products=products.split(","),
+                    rate0=_fortran_float(rate, "rate", line_number),
+                    neg_Ea_R=_fortran_float(neg_Ea_R, "activation energy", line_number),
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    f"Invalid numeric value in aqueous reaction at "
+                    f"{reaction_datafile}:{line_number}."
+                ) from exc
+
+            ids.append(len(reactions))
+            reactions.append(one_reaction)
+
+    if selected_groups is not None:
+        unknown_groups = selected_groups - available_groups
+        if unknown_groups:
+            unknown = ", ".join(sorted(unknown_groups))
+            available = ", ".join(sorted(available_groups))
+            raise ValueError(
+                f"Unknown aqueous reaction group(s): {unknown}. "
+                f"Available groups: {available}."
+            )
+
+    return AqueousReactions(
+        reactions=tuple(reactions),
+        ids=tuple(ids),
+    )
+
+def make_GasReactions(chemistry=None, mechanism_data_path="mechanisms/"):
+    """Load all gas reactions from gas_reactions.dat.
+
+    Gas mechanisms have no group column, so only chemistry=None is supported;
+    any non-None selector raises NotImplementedError. The direct-loader
+    default path mechanisms/ is relative to the process working directory.
+    Scenario constructors resolve omitted paths relative to the installed
+    package.
+    """
+    if chemistry is not None:
+        raise NotImplementedError(
+            "make_GasReactions() received chemistry=%r, but group-based "
+            "filtering of gas-phase reactions is not implemented: "
+            "gas_reactions.dat has no 'group' column (unlike aq_reactions.dat, "
+            "which make_AqReactions() filters on), so there is currently no way "
+            "to select a subset of gas-phase reactions."
+            % (chemistry,)
+        )
+
+    reaction_datafile = Path(mechanism_data_path) / "gas_reactions.dat"
+    valid_forms = {
+        "power",
+        "exp",
+        "troe",
+        "HO2_water_enhancement",
+    }
+
+    def _fortran_float(value: str, field: str, line_number: int) -> float:
+        parsed = float(value.replace("D", "E").replace("d", "e"))
+        if not math.isfinite(parsed):
+            raise ValueError(f"Non-finite {field} value")
+        return parsed
+
+    reactions = []
+    ids = []
+
+    with reaction_datafile.open() as data_file:
+        # gas_reactions.dat contains a one-line header.
+        next(data_file, None)
+
+        for line_number, line in enumerate(data_file, start=2):
+            fields = line.split()
+
+            if not fields:
+                continue
+
+            if len(fields) != 6:
+                raise ValueError(
+                    f"Malformed gas reaction in {reaction_datafile} at "
+                    f"line {line_number}: expected 6 fields, found "
+                    f"{len(fields)}."
+                )
+
+            (
+                reactants,
+                products,
+                rate,
+                highP_limit,
+                T_dependence,
+                form,
+            ) = fields
+
+            if form not in valid_forms:
+                raise ValueError(
+                    f"Unsupported gas reaction form '{form}' in "
+                    f"{reaction_datafile} at line {line_number}."
+                )
+
+            try:
+                one_reaction = GasReaction(
+                    reactants=reactants.split(","),
+                    products=products.split(","),
+                    rate0=_fortran_float(rate, "rate", line_number),
+                    high_P_limit=_fortran_float(highP_limit, "high-pressure limit", line_number),
+                    T_dependence=_fortran_float(T_dependence, "temperature dependence", line_number),
+                    form=form,
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    f"Invalid numeric value in gas reaction at "
+                    f"{reaction_datafile}:{line_number}."
+                ) from exc
+
+            ids.append(len(reactions))
+            reactions.append(one_reaction)
+    
+    return GasReactions(
+        reactions=tuple(reactions),
+        ids=tuple(ids),
+    )

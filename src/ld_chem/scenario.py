@@ -5,6 +5,7 @@ simulation scenarios.
 """
 
 from dataclasses import dataclass
+from pathlib import Path
 import numpy as np
 from .reactions import make_AqReactions, make_GasReactions
 from .particles import AerosolSpecies, retrieve_one_species
@@ -14,6 +15,19 @@ from scipy.optimize import fminbound
 from .processes.air_thermo import H2O_mole_fraction
 import ld_chem.constants as c
 from typing import Optional
+
+
+_PACKAGE_DATA = Path(__file__).resolve().parent
+
+
+def _scenario_data_path(path, directory):
+    """Resolve an omitted data path relative to this package.
+
+    Explicit paths are preserved; an explicit relative path is interpreted
+    relative to the process working directory.
+    """
+    resolved = Path(path) if path is not None else _PACKAGE_DATA / directory
+    return str(resolved) + "/"
 
 @dataclass
 class LagrangianElement: 
@@ -284,13 +298,16 @@ def _prepare_initial_species(
 
 def create_parcel_scenario(
         num_concs = np.array([1.0e6]), pHs=np.array([7.0]),
-        species_names=np.array(['NaCl']), species_masses=np.array([2.4e-25]),
+        species_names=np.array(['SO4', 'H2O']),
+        species_masses=np.array([[2.4e-25, 0.0]]),
         updraft_velocity=1.0, S0=0.85, P0=101325, T0=298,
         z_start=0.0,z_end=1000, gas_names=None, gas_concs=None, 
-        dt=1.0, specdata_path='species_data/',
-        mechanism_data_path='mechamisms/', aq_chemistry=None, 
+        dt=1.0, specdata_path=None,
+        mechanism_data_path=None, aq_chemistry=None, 
         cocondensation=False, gas_chemistry=False, aero_species=None):
     """Create the initial state for an adiabatic parcel simulation.
+
+    The default SO4/H2O masses have shape (1, 2), with one column per species.
 
     When provided, ``aero_species`` must contain one species definition per
     ``species_masses`` column, with unique names matching ``species_names`` in
@@ -301,6 +318,9 @@ def create_parcel_scenario(
     default, and H2O and zero-density species retain their complete LD-Chem
     definitions.
     """
+
+    specdata_path = _scenario_data_path(specdata_path, "species_data")
+    mechanism_data_path = _scenario_data_path(mechanism_data_path, "mechanisms")
 
     species_names, species_masses, initial_species = _prepare_initial_species(
         species_names, species_masses, aero_species, specdata_path
@@ -442,14 +462,16 @@ def create_parcel_scenario(
 
 
 def create_les_scenario(num_concs=np.array([1e6]),
-            pHs=np.array([7.0]),species_names=np.array(['NaCl']),
-            species_masses=np.array([2.4e-25]),
+            pHs=np.array([7.0]),species_names=np.array(['SO4', 'H2O']),
+            species_masses=np.array([[2.4e-25, 0.0]]),
             trajectory_data=None,
-            specdata_path='species_data/',
-            mechanism_data_path='mechanisms/',
+            specdata_path=None,
+            mechanism_data_path=None,
             condensation=True, cocondensation=False, 
             aq_chemistry=None, gas_chemistry=None, aero_species=None):
     """Create the initial state for a trajectory-driven LES simulation.
+
+    The default SO4/H2O masses have shape (1, 2), with one column per species.
 
     When provided, ``aero_species`` must contain one species definition per
     ``species_masses`` column, with unique names matching ``species_names`` in
@@ -460,6 +482,9 @@ def create_les_scenario(num_concs=np.array([1e6]),
     default, and H2O and zero-density species retain their complete LD-Chem
     definitions.
     """
+
+    specdata_path = _scenario_data_path(specdata_path, "species_data")
+    mechanism_data_path = _scenario_data_path(mechanism_data_path, "mechanisms")
 
     species_names, species_masses, initial_species = _prepare_initial_species(
         species_names, species_masses, aero_species, specdata_path

@@ -6,8 +6,10 @@ and particle populations
 
 import sys, warnings
 import numpy as np
+import math
 from dataclasses import dataclass
 from typing import Tuple, Callable
+from pathlib import Path
 from part2pop.aerosol_particle import compute_Dwet, compute_mass_h2o
 
 warnings.filterwarnings('ignore')
@@ -22,19 +24,67 @@ class AerosolSpecies:
     molar_mass: float
     surface_tension: float
 
-def retrieve_one_species(name, specdata_path='species_data/',surface_tension=0.072):
-    aero_datafile = specdata_path + 'aero_data.dat'
-    with open(aero_datafile) as data_file:
-        for line in data_file:
-            if line.split()[0]==name:
-                name_in_file,density,ions_in_solution,molar_mass,kappa = line.split()
-    
-    return AerosolSpecies(
-        name=name_in_file,
-        density=float(density),
-        kappa=float(kappa),
-        molar_mass=float(molar_mass.replace('d','e')),
-        surface_tension=surface_tension)
+def retrieve_one_species(name, specdata_path='species_data/', surface_tension=0.072):
+    """Read one species from specdata_path / "aero_data.dat".
+
+    specdata_path accepts strings and path-like objects. Relative paths,
+    including the default species_data/, are resolved from the process
+    working directory; a trailing path separator is not required.
+    """
+    aero_datafile = Path(specdata_path) / "aero_data.dat"
+    matched_species = None
+    matched_line_number = None
+    with aero_datafile.open(encoding="utf-8") as data_file:
+        for line_number, line in enumerate(data_file, start=1):
+            fields = line.split()
+            if not fields or fields[0] != name:
+                continue
+
+            if matched_species is not None:
+                raise ValueError(
+                    f"Duplicate aerosol species entry for '{name}' in "
+                    f"{aero_datafile}: lines {matched_line_number} and "
+                    f"{line_number}."
+                )
+
+            if len(fields) != 5:
+                raise ValueError(
+                    f"Malformed aerosol species entry for '{name}' in "
+                    f"{aero_datafile} at line {line_number}: expected 5 fields, "
+                    f"found {len(fields)}."
+                )
+
+            name_in_file, density, _ions_in_solution, molar_mass, kappa = fields
+            try:
+                numeric_values = {
+                    "density": float(density),
+                    "kappa": float(kappa),
+                    "molar_mass": float(
+                        molar_mass.replace("D", "E").replace("d", "e")
+                    ),
+                }
+                if not all(math.isfinite(value) for value in numeric_values.values()):
+                    raise ValueError("values must be finite")
+                matched_species = AerosolSpecies(
+                    name=name_in_file,
+                    **numeric_values,
+                    surface_tension=surface_tension,
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    f"Invalid numeric value in aerosol species '{name}' at "
+                    f"{aero_datafile}:{line_number}."
+                ) from exc
+            matched_line_number = line_number
+
+    if matched_species is not None:
+        return matched_species
+
+    raise ValueError(
+        f"Unknown aerosol species '{name}': no matching entry found in "
+        f"{aero_datafile}. Add it to the species data file or check for "
+        f"a typo in aero_spec_names."
+    )
 '''
 def equilibrate_h2o(species_names, species_masses, S, T, P, specdata_path='species_data/', sigma_h2o=0.072, rho_h2o=1000., MW_h2o=18e-3):
     spec_volumes = np.zeros(species_masses.shape)
@@ -64,9 +114,3 @@ def get_particle_concentrations(aerosol_population):
         concs[:,ii] = (spec_masses[:,ii]/spec.molar_mass)/water_volumes # mol/m^3
     return concs
 '''
-
-    
-    
-    
-    
-    
