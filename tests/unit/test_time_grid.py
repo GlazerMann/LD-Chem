@@ -63,3 +63,21 @@ def test_simulate_parcel_rejects_zero_updraft_before_scenario_setup(monkeypatch)
     )
     with pytest.raises(ValueError, match="updraft_velocity must be nonzero"):
         run_module.simulate_parcel([], [], [], [], updraft_velocity=0.0)
+
+
+@pytest.mark.parametrize(
+    ("t_start", "t_end", "dt"),
+    [
+        (0.0, 0.1 + 0.2, 0.1),
+        (0.0, 3 * 0.1, 0.1),
+        (0.1, 0.1 + 0.1 + 0.1, 0.1),
+        (1.0e16, 1.0e16 + 4.0, 0.5),
+    ],
+)
+def test_positive_duration_has_strictly_increasing_times(t_start, t_end, dt):
+    times = _make_time_grid(t_start, t_end, dt)
+
+    assert times[0] == t_start
+    assert times[-1] == t_end
+    assert np.all(np.diff(times) > 0.0)
+    assert np.count_nonzero(times == t_end) == 1
