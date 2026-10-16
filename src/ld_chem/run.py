@@ -33,7 +33,9 @@ def _make_time_grid(t_start, t_end, dt):
     intervals = int(np.ceil(duration / dt))
     times = np.minimum(t_start + np.arange(intervals + 1) * dt, t_end)
     times[-1] = t_end
-    return times
+    # Rounding can make ceil() add an extra endpoint, or make adjacent
+    # additions identical. Never pass a zero-length step to the integrator.
+    return times[np.r_[True, np.diff(times) > 0.0]]
 
 
 def _parcel_end_time(z_start, z_end, updraft_velocity):
