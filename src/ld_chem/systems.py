@@ -43,10 +43,30 @@ def account_for_implicit_aqueous_water(reference_masses, updated_masses, water_i
     charge balance, so it can conceal incorrect reaction stoichiometry; those
     checks must be performed independently.
     """
-    balanced_masses = np.array(updated_masses, copy=True)
-    mass_change = (np.sum(balanced_masses, axis=1)
-                   - np.sum(reference_masses, axis=1))
-    water_mass = balanced_masses[:, water_idx] - mass_change
+    reference = np.asarray(reference_masses)
+    updated = np.asarray(updated_masses)
+    if reference.ndim != 2 or updated.ndim != 2 or reference.shape != updated.shape:
+        raise ValueError("Water mass inputs must have the same two-dimensional shape")
+    if (isinstance(water_idx, (bool, np.bool_)) or
+            not isinstance(water_idx, (int, np.integer)) or
+            not -updated.shape[1] <= water_idx < updated.shape[1]):
+        raise ValueError("water_idx must select a valid species column")
+    for masses in (reference, updated):
+        if (not np.issubdtype(masses.dtype, np.number) or np.iscomplexobj(masses) or
+                not np.all(np.isfinite(masses))):
+            raise ValueError("Water mass inputs must contain finite real numbers")
+    # Promote before subtraction so unsigned inputs cannot wrap, and integer
+    # output arrays cannot truncate a solvent correction. Never mutate inputs.
+    dtype = np.result_type(reference.dtype, updated.dtype, np.float64)
+    reference = reference.astype(dtype, copy=False)
+    balanced_masses = np.array(updated, dtype=dtype, copy=True)
+    # Difference each species first: unchanged bulk components must not hide
+    # trace solute changes or bypass the available-water check by cancellation.
+    with np.errstate(over='ignore', invalid='ignore'):
+        mass_change = np.sum(balanced_masses - reference, axis=1)
+        water_mass = balanced_masses[:, water_idx] - mass_change
+    if not np.all(np.isfinite(water_mass)):
+        raise ValueError("Water mass balance must remain finite")
     if np.any(water_mass < 0.0):
         raise ValueError("Aqueous chemistry consumes more water than is available")
     balanced_masses[:, water_idx] = water_mass
