@@ -36,7 +36,7 @@ def create_mock_parcel_state(T=298.15, P=101325.0, S=0.85):
 
     gas = type('MockGasPop', (), {
         'gases': [gas_so2],
-        'concs': [1e-6]  # mol/m^3
+        'concs': [1e-6]  # ppb
     })()
 
     # Mock parcel state
@@ -118,8 +118,8 @@ def test_check_gas_chemistry_pass():
     parcel_next = create_mock_parcel_state()
 
     # Set up balanced gas concentrations
-    parcel_0.gas.concs = [1e-6]
-    parcel_next.gas.concs = [1e-6]  # Same concentration
+    parcel_0.gas.concs = [10.0]  # ppb
+    parcel_next.gas.concs = [10.0]  # Same concentration
 
     # Should not raise an exception
     result = check_gas_chemistry(parcel_0, parcel_next)
@@ -131,9 +131,10 @@ def test_check_gas_chemistry_fail():
     parcel_0 = create_mock_parcel_state()
     parcel_next = create_mock_parcel_state()
 
-    # Set up imbalanced gas concentrations
-    parcel_0.gas.concs = [1e-6]
-    parcel_next.gas.concs = [1.1e-6]  # Different concentration
+    # A 1 ppb change is above the mass check's 1e-15 kg/m^3 noise floor.
+    # The former 1e-7 ppb change was below that floor after unit conversion.
+    parcel_0.gas.concs = [10.0]
+    parcel_next.gas.concs = [11.0]
 
     # Should raise ValueError
     with pytest.raises(ValueError, match="Mass not conserved in gas chemistry"):
