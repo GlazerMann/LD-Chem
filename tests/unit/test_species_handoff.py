@@ -430,12 +430,9 @@ def test_particulate_kappa_must_be_nonnegative():
         _prepare(np.array(["OC"]), np.zeros((1, 1)), (source,))
 
 
-def test_unknown_species_is_rejected_with_old_or_hardened_loader():
+def test_unknown_species_reports_hardened_loader_diagnostic():
     source = SimpleNamespace(name="OCC", density=1000.0, kappa=0.001)
-    # The historical loader falls through with UnboundLocalError and the helper
-    # translates it; hardened loaders may raise ValueError directly. The public
-    # contract is rejection either way.
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"Unknown aerosol species 'OCC'.*aero_data\.dat"):
         _prepare(np.array(["OCC"]), np.zeros((1, 1)), (source,))
 
 

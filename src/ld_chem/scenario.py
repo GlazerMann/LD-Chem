@@ -204,20 +204,13 @@ def _prepare_initial_species(
             "aero_species names must exactly match species_names in the same order"
         )
 
-    # Validate names with the same LD-Chem table used by the original path.
-    # Translate the historical missing-row UnboundLocalError; hardened loaders
-    # can raise ValueError directly and that error should pass through unchanged.
+    # The species loader owns table validation and contextual diagnostics.
+    # Let its errors pass through unchanged.
     reference_species = {}
     for name in supplied_names:
-        try:
-            reference_species[name] = retrieve_one_species(
-                name, specdata_path=specdata_path
-            )
-        except UnboundLocalError as exc:
-            raise ValueError(
-                f"supplied initial species {name!r} is not defined in "
-                f"LD-Chem species data at {specdata_path!r}"
-            ) from exc
+        reference_species[name] = retrieve_one_species(
+            name, specdata_path=specdata_path
+        )
 
     snapshots = {}
     for index, source in enumerate(supplied_species):
