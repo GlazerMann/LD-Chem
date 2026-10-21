@@ -77,7 +77,7 @@ def retrieve_gas_species(name, specdata_path='../species_data/'):
             _, alpha, molar_mass, H0, H_exp = fields
             try:
                 numeric_values = {
-                    "alpha": float(alpha),
+                    "alpha": float(alpha.replace("D", "E").replace("d", "e")),
                     "molar_mass": float(
                         molar_mass.replace("D", "E").replace("d", "e")
                     ),
@@ -86,6 +86,10 @@ def retrieve_gas_species(name, specdata_path='../species_data/'):
                 }
                 if not all(math.isfinite(value) for value in numeric_values.values()):
                     raise ValueError("values must be finite")
+                if not 0 <= numeric_values["alpha"] <= 1:
+                    raise ValueError("alpha must be in [0, 1]")
+                if numeric_values["molar_mass"] <= 0:
+                    raise ValueError("molar_mass must be > 0")
                 matched_species = GasSpecies(
                     name=name,
                     **numeric_values,
