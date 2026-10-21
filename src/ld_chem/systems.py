@@ -200,8 +200,8 @@ def update_air(
                     "dt must be positive when condensation feedback is enabled"
                 )
 
-            # feedbacks.dwc_dt is the total condensed-water mass change
-            # accumulated over the preceding timestep (kg/m^3).
+            # feedbacks.dwc_dt is the water-mass change produced by the
+            # particle update of this same simulation interval (kg/m^3).
             # air_thermo.dstate_dt() requires a rate (kg/m^3/s).
             condensed_water_rate = feedbacks.dwc_dt / dt
 
@@ -232,7 +232,9 @@ def update_air(
             X0 = (S0 * water_uptake.es(T0 - 273.15)) / (c.R * T0)
             X_next = X0 + (feedbacks.dwv_dt / c.Mw)
             Ph2o_next = X_next * c.R * T0
-            dT_dt = -1.0 * (c.L / c.Cp) * feedbacks.dwv_dt
+            # Feedback is kg/m^3, but Cp is per kg of air.
+            _, rho_air, _ = air_thermo.compute_thermo_props(T0, P0, S0)
+            dT_dt = -1.0 * (c.L / c.Cp) * (feedbacks.dwv_dt / rho_air)
             S_next = Ph2o_next / water_uptake.es((T0 + dT_dt) - 273.15)
 
             ParcelState_Next.T = T0 + dT_dt
