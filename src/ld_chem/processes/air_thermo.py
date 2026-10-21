@@ -141,18 +141,24 @@ def compute_thermo_props(T, P, S):
 def S_to_wv(S,T,P):
     """Return water-vapor mass mixing ratio in kg H2O per kg dry air.
 
-    S is dimensionless, T is kelvin, and P is pascal. The formula assumes
-    the vapor pressure S * e_sat is below the total pressure.
+    S is dimensionless, T is kelvin, and P is pascal. Requires finite inputs,
+    T > 0, P > 0, S >= 0, and vapor pressure S * e_sat < P.
     """
-    
+    if not (np.isfinite(S) and np.isfinite(T) and np.isfinite(P)):
+        raise ValueError("S, T and P must be finite")
+    if T <= 0.0 or P <= 0.0 or S < 0.0:
+        raise ValueError("T and P must be positive and S nonnegative")
+
     p_hPa = P/100. # convert Pa to hPa
     T_C = T-273.15 # Convert from kelvin to degrees C
-    
+
     #Saturation vapor pressure (T)
     e_sat = 6.1094*np.exp(17.625*T_C/(243.04+T_C)) #(hPa)
-    
+
     # Vapor pressure from saturation ratio
     e = S*e_sat
+    if not np.isfinite(e) or e >= p_hPa:
+        raise ValueError("water vapor pressure must be finite and below total pressure")
     # Mass mixing ratio [kg H2O / kg dry air].
     wv = e*0.622/(p_hPa - e)
     
