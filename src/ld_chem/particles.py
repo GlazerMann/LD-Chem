@@ -57,14 +57,22 @@ def retrieve_one_species(name, specdata_path='species_data/', surface_tension=0.
             name_in_file, density, _ions_in_solution, molar_mass, kappa = fields
             try:
                 numeric_values = {
-                    "density": float(density),
-                    "kappa": float(kappa),
+                    "density": float(density.replace("D", "E").replace("d", "e")),
+                    "kappa": float(kappa.replace("D", "E").replace("d", "e")),
                     "molar_mass": float(
                         molar_mass.replace("D", "E").replace("d", "e")
                     ),
                 }
                 if not all(math.isfinite(value) for value in numeric_values.values()):
                     raise ValueError("values must be finite")
+                # A zero density is an existing LD-Chem marker for dissolved
+                # species; prohibit negative densities without changing it.
+                if numeric_values["density"] < 0:
+                    raise ValueError("density must be >= 0")
+                if numeric_values["kappa"] < 0:
+                    raise ValueError("kappa must be >= 0")
+                if numeric_values["molar_mass"] <= 0:
+                    raise ValueError("molar_mass must be > 0")
                 matched_species = AerosolSpecies(
                     name=name_in_file,
                     **numeric_values,
