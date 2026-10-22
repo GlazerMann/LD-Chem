@@ -9,7 +9,8 @@ import numpy as np
 from .reactions import make_AqReactions, make_GasReactions
 from .particles import retrieve_one_species
 from part2pop.population import ParticlePopulation
-from .gases import TraceGasPopulation, make_TraceGasPopulation
+from .gases import (TraceGasPopulation, make_TraceGasPopulation,
+                    _validate_chemistry_gas_names)
 from scipy.optimize import fminbound
 from .processes.air_thermo import H2O_mole_fraction
 import ld_chem.constants as c
@@ -125,6 +126,8 @@ def create_parcel_scenario(
         if 'N2' not in gas_names:
             gas_names.append('N2')
             gas_concs.append(1e9*0.7808*(1-H2O_x))
+        if gas_chemistry:
+            _validate_chemistry_gas_names(gas_names)
         TraceGas_population = make_TraceGasPopulation(gas_names, gas_concs, specdata_path=specdata_path)
     else:
         TraceGas_population = None
@@ -266,6 +269,8 @@ def create_les_scenario(num_concs=np.array([1e6]),
         if 'N2' not in gas_names:
             gas_names.append('N2')
             gas_concs.append(1e9*0.7808*(1-H2O_x))
+        if gas_chemistry:
+            _validate_chemistry_gas_names(gas_names)
         TraceGas_population = make_TraceGasPopulation(gas_names, gas_concs, specdata_path=specdata_path)
     else:
         TraceGas_population = None

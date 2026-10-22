@@ -12,7 +12,7 @@ def _state(gas_ppb, saturation_ratio, T=298.15, P=101325.0):
         ("N2", 0.028),
     )
     gases = [SimpleNamespace(name=name, molar_mass=molar_mass)
-             for name, molar_mass in names_and_molar_masses]
+             for name, molar_mass in names_and_molar_masses[:len(gas_ppb)]]
     return SimpleNamespace(
         gas=SimpleNamespace(gases=gases, concs=gas_ppb),
         S=saturation_ratio, T=T, P=P,

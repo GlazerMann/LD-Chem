@@ -91,3 +91,17 @@ def make_TraceGasPopulation(gas_names, gas_conc, specdata_path='species_data/'):
         concs = None
         ids = None
     return TraceGasPopulation(gases=gases, concs=concs, ids=ids)
+
+
+def _validate_chemistry_gas_names(names):
+    """Reserve H2O and M for humidity and the total-air collider, respectively."""
+    names = tuple(names)
+    if any(not isinstance(name, str) or not name for name in names):
+        raise ValueError("Gas chemistry species names must be nonempty strings")
+    if len(set(names)) != len(names):
+        raise ValueError("Gas chemistry species names must be unique")
+    if any(name in ("H2O", "M") for name in names):
+        raise ValueError(
+            "Gas chemistry cannot track explicit H2O or M: use saturation "
+            "ratio for water; total-air collider M is derived from T and P"
+        )

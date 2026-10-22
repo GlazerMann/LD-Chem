@@ -6,6 +6,7 @@
 import numpy as np
 from .utilities import check_water_condensation, check_gas_condensation, check_gas_chemistry, check_mass_balance
 from dataclasses import dataclass
+from .gases import _validate_chemistry_gas_names
 from numba.typed import Dict
 from numba import types
 from .processes import water_uptake, air_thermo, cocondensation, gas_chemistry, aqueous_chemistry
@@ -177,6 +178,9 @@ def update_air(t2, ParcelState_0, processes, feedbacks, dt,
     dS_dt=0
     dwv_dt=0
     ParcelState_Next = ParcelState_0.clone_detached()
+
+    if processes.gas_chemistry:
+        _validate_chemistry_gas_names(gas.name for gas in ParcelState_0.gas.gases)
 
     if processes.condensation:
         state0 = np.array([z0,T0,P0,S0,wv0])
