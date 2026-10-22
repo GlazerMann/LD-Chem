@@ -254,16 +254,20 @@ def update_air(
                 ParcelState_Next.gas.concs[TraceGas_idx] += dppb_dt
     
     if processes.gas_chemistry:
-        P = ParcelState_0.P
-        T = ParcelState_0.T
-        S = ParcelState_0.S
+        # Particle feedback and air thermodynamics precede gas chemistry.
+        # Retain an immediate input snapshot for the chemistry-only budget.
+        chemistry_input = ParcelState_Next.clone_detached()
+        P = chemistry_input.P
+        T = chemistry_input.T
+        S = chemistry_input.S
 
         # set up the initial gas concentrations
-        X0 = (ParcelState_0.gas.concs*1e-9*P)/(c.R*T) # mol/m^3
+        X0 = (chemistry_input.gas.concs*1e-9*P)/(c.R*T) # mol/m^3
         gas_names = Dict.empty(key_type=types.unicode_type, value_type=types.int32)
-        for ii, (gas) in enumerate(ParcelState_0.gas.gases):
+        for ii, (gas) in enumerate(chemistry_input.gas.gases):
             gas_names[gas.name]=ii
-        X0=np.append(X0, air_thermo.H2O_gas_conc(S,T,P))
+        initial_water = air_thermo.H2O_gas_conc(S, T, P)
+        X0=np.append(X0, initial_water)
         gas_names['H2O']=ii+1
         X0=np.append(X0, P/(c.R*T))
         gas_names['M']=ii+2
@@ -298,10 +302,16 @@ def update_air(
          
         # convert to ppb
         ParcelState_Next.gas.concs=X_next[:-2]*1e9*((c.R*T)/P)
-        ParcelState_Next.S = (X_next[-2]*c.R*T)/water_uptake.es(T-273.15) # S change from chemistry
-        
-        # do mass balance
-        check_gas_chemistry(ParcelState_0, ParcelState_Next)
+        # Apply only chemistry's water change. An identity mechanism must
+        # preserve the humidity and prognostic vapor feedback already applied.
+        water_change = X_next[-2] - initial_water
+        ParcelState_Next.S = S + water_change*c.R*T/water_uptake.es(T-273.15)
+        if water_change != 0.0:
+            ParcelState_Next.wv = air_thermo.S_to_wv(ParcelState_Next.S, T, P)
+
+        # Compare against the immediate chemistry input, excluding earlier
+        # condensation, heating, and gas/particle transfer from this budget.
+        check_gas_chemistry(chemistry_input, ParcelState_Next)
 
     return ParcelState_Next
 

@@ -30,6 +30,14 @@ def check_water_condensation(ParcelState_0, ParcelState_Next, dwc_dt):
     water_idx=ParcelState_Next.particles.get_species_idx("H2O")
     water_next = ParcelState_Next.particles.spec_masses[:, water_idx]
     number_next = np.asarray(ParcelState_Next.particles.num_concs)
+    # Promote before subtracting: unsigned arrays must not wrap when water
+    # mass or number concentration decreases.
+    dtype = np.result_type(water_0.dtype, water_next.dtype,
+                           number_0.dtype, number_next.dtype, np.float64)
+    water_0 = water_0.astype(dtype, copy=False)
+    water_next = water_next.astype(dtype, copy=False)
+    number_0 = number_0.astype(dtype, copy=False)
+    number_next = number_next.astype(dtype, copy=False)
     # Difference before multiplying: subtracting weighted bulk masses loses
     # tiny condensation changes. Retain number-concentration changes as well.
     mass_change = np.sum(number_0 * (water_next - water_0)
