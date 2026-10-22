@@ -41,7 +41,9 @@ def account_for_implicit_aqueous_water(reference_masses, updated_masses, water_i
 
     This enforces total tracked mass only. It does not check elemental or
     charge balance, so it can conceal incorrect reaction stoichiometry; those
-    checks must be performed independently.
+    checks must be performed independently. In particular, review nitrate N
+    balance, the IEPOX/SO4 proton bookkeeping, and omitted N products in the
+    special S(IV)/HNO2 rate. See docs/aqueous-solvent-accounting.md.
     """
     reference = np.asarray(reference_masses)
     updated = np.asarray(updated_masses)
