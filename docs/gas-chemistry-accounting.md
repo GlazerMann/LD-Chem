@@ -11,11 +11,11 @@ Supply parcel water through S0 and LES water through the trajectory's `s`
 values; remove H2O entries from gas_names or trajectory gas mappings. The code
 does not silently reconcile conflicting humidity and explicit water inputs.
 
-PR #11's coupled-process correction applies gas chemistry to the output of air
+Coupled-process integration must apply gas chemistry to the output of air
 thermodynamics and gas/particle feedback. The chemistry-only mass comparison
 must use the snapshot immediately preceding gas chemistry. Comparing with the
 outer step's initial state can incorrectly charge condensation or heating to
-the gas chemistry budget. Integrate and validate these changes together.
+the gas chemistry budget. Validate the complete process order together.
 
 The mass checker rejects nonfinite values, invalid thermodynamic domains,
 inconsistent species/concentration dimensions, mismatched species order or
