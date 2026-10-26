@@ -31,9 +31,9 @@ using the current species table, consistent with implicit O2 participation.
 The strict closed-system check rejects this unaccounted mass. An isolated
 one-second CO/OH calculation with CO=100 ppb and OH=1 ppb reproduces that error.
 
-Keep the conservation PR draft until chemistry reviewers decide whether O2 is
-explicitly consumed or is an external buffered reservoir, and specify the
-corresponding budget. Do not add O2 to kinetic reactants without checking the
+Scientific acceptance requires a reviewed decision on whether O2 is explicitly
+consumed or is an external buffered reservoir, with a corresponding mass
+budget. Do not add O2 to kinetic reactants without checking the
 meaning and units of the effective rate coefficient. No rate or stoichiometry
 change, reservoir exemption, or looser tolerance is introduced here.
 
