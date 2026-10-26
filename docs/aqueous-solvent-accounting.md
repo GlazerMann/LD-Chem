@@ -28,6 +28,6 @@ and the intended mechanism have been confirmed. Do not insert H2O or O2 kinetic
 concentration factors solely to make a mass check pass. Do not unconditionally
 clamp negative water: decide the acceptable roundoff policy separately.
 
-The cancellation-safe condensation check shared with PR #11 is also required
-for the small-water-change LES regressions in PR #23. This numerical dependency
+Cancellation-safe condensation accounting is also required for small-water-
+change LES calculations. That numerical protection
 does not resolve the scientific review gate above.
