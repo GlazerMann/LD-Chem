@@ -130,6 +130,23 @@ def test_create_parcel_scenario_basic():
         assert parcel_state.get_activated_fraction() > 0.0  # Should have some activation
 
 
+def test_create_parcel_scenario_gas_chemistry_uses_package_data_defaults(
+    tmp_path: Path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+
+    # Isolate package-data lookup from the constructor's aerosol defaults.
+    parcel_state, _, gas_reactions = create_parcel_scenario(
+        gas_chemistry=True,
+        updraft_velocity=0.0,
+        species_names=np.array(["SO4", "H2O"]),
+        species_masses=np.array([[1e-25, 1e-25]]),
+    )
+
+    assert parcel_state.gas is not None
+    assert gas_reactions is not None
+
+
 def test_create_parcel_scenario_with_cocondensation():
     """Test parcel scenario creation with gas chemistry."""
     num_concs = np.array([1e6])
