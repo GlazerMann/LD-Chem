@@ -13,6 +13,58 @@ from pathlib import Path
 from .write_files import write_original, overwrite
 from .systems import update_state, air_from_les
 
+
+def _make_time_grid(t_start, t_end, dt):
+    """Return integration times ending exactly at ``t_end``.
+
+    The final interval can be shorter than ``dt``; integration callers must
+    use the actual interval length.
+    """
+    if not np.isfinite(dt) or dt <= 0.0:
+        raise ValueError("dt must be a finite positive number")
+    if not np.isfinite(t_start) or not np.isfinite(t_end):
+        raise ValueError("simulation start and end times must be finite")
+    if t_end < t_start:
+        raise ValueError("simulation end time must not precede start time")
+
+    duration = t_end - t_start
+    if not np.isfinite(duration):
+        raise ValueError("simulation duration must be finite")
+    intervals = int(np.ceil(duration / dt))
+    times = np.minimum(t_start + np.arange(intervals + 1) * dt, t_end)
+    times[-1] = t_end
+    # Rounding can make ceil() add an extra endpoint, or make adjacent
+    # additions identical. Never pass a zero-length step to the integrator.
+    return times[np.r_[True, np.diff(times) > 0.0]]
+
+
+def _parcel_end_time(z_start, z_end, updraft_velocity):
+    """Convert parcel height bounds to a validated elapsed time."""
+    try:
+        z_start = float(z_start)
+        z_end = float(z_end)
+        updraft_velocity = float(updraft_velocity)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(
+            "parcel heights and updraft_velocity must be finite numbers"
+        ) from exc
+
+    if not np.isfinite(z_start) or not np.isfinite(z_end):
+        raise ValueError("parcel heights must be finite")
+    if not np.isfinite(updraft_velocity):
+        raise ValueError("updraft_velocity must be finite")
+    if updraft_velocity == 0.0:
+        raise ValueError("updraft_velocity must be nonzero")
+
+    try:
+        end_time = (z_end - z_start) / updraft_velocity
+    except OverflowError as exc:
+        raise ValueError("parcel end time must be finite") from exc
+    if not np.isfinite(end_time):
+        raise ValueError("parcel end time must be finite")
+    return end_time
+
+
 def simulate_les_trajectory(
     aero_spec_names, aero_spec_masses, num_concs, pHs, 
     trajectory_data, mechanism_data_path=None, 
@@ -62,8 +114,7 @@ def simulate_les_trajectory(
     runtime0 = time.time()
     t_start=ParcelState_driver.t_data[0]
     t_end=ParcelState_driver.t_data[-1]
-    Ntimes = int((t_end - t_start)/dt + 1)
-    t_eval = np.linspace(t_start, t_end, Ntimes)
+    t_eval = _make_time_grid(t_start, t_end, dt)
     last_written=t_start
     counter=0
 
@@ -82,9 +133,10 @@ def simulate_les_trajectory(
     
     for (t1,t2) in zip(t_eval[:-1],t_eval[1:]):
         steptime0 = time.time()
+        step_dt = t2 - t1
 
         ParcelState_Next = update_state(t1, t2,
-            ParcelState_0, processes, dt,
+            ParcelState_0, processes, step_dt,
             radius_scale=radius_scale,
             accom=accom, mechanism_data_path=mechanism_data_path,
             aq_reactions=aq_reactions, gas_reactions=gas_reactions,
@@ -93,7 +145,7 @@ def simulate_les_trajectory(
         # get new air state from LES
         ParcelState_Next=air_from_les(
             ParcelState_Next, processes, t2,
-            relaxation_time, dt, ParcelState_driver, 
+            relaxation_time, step_dt, ParcelState_driver,
             rtol=1e-4, atol=1e-8)
 
         # adjust the number concentration based on the new temperature and pressure
@@ -141,7 +193,8 @@ def simulate_les_trajectory(
             last_written=t2
     
     # write final state
-    overwrite(t2, ParcelState_0, output_filename, specdata_path=specdata_path)
+    if len(t_eval) > 1:
+        overwrite(t_end, ParcelState_0, output_filename, specdata_path=specdata_path)
     f = open(status_filename, 'w')
     f.write('complete')
     f.close()
@@ -166,6 +219,8 @@ def simulate_parcel(
     progress_filename='RUN_PROGRESS.out', write_every=60.0, print_to_screen=True,
     mechanism_data_path=None, condensation = True, 
     cocondensation = False, aq_chemistry = False, gas_chemistry = False):
+
+    t_end = _parcel_end_time(z_start, z_end, updraft_velocity)
 
     if not mechanism_data_path:
         if print_to_screen:
@@ -204,9 +259,7 @@ def simulate_parcel(
 
     runtime0 = time.time()
     t_start=0.0
-    t_end=(z_end-z_start)/updraft_velocity
-    Ntimes = int((t_end - t_start)/dt + 1)
-    t_eval = np.linspace(t_start, t_end, Ntimes)
+    t_eval = _make_time_grid(t_start, t_end, dt)
     last_written=t_start
     counter=0
     write_original(t_start, ParcelState_0, output_filename, specdata_path=specdata_path)
@@ -223,9 +276,10 @@ def simulate_parcel(
     for (t1,t2) in zip(t_eval[:-1],t_eval[1:]):
 
         steptime0 = time.time()
+        step_dt = t2 - t1
 
         ParcelState_Next = update_state(t1, t2,
-            ParcelState_0, processes, dt,
+            ParcelState_0, processes, step_dt,
             radius_scale=radius_scale,
             accom=accom, mechanism_data_path=mechanism_data_path,
             aq_reactions=aq_reactions, gas_reactions=gas_reactions,
@@ -277,7 +331,8 @@ def simulate_parcel(
             last_written=t2
     
     # write final state
-    overwrite(t2, ParcelState_0, output_filename, specdata_path=specdata_path)
+    if len(t_eval) > 1:
+        overwrite(t_end, ParcelState_0, output_filename, specdata_path=specdata_path)
     f = open(status_filename, 'w')
     f.write('complete')
     f.close()
@@ -319,7 +374,7 @@ def restart_trajectory(trajectory_filename='trajectory_output.pkl',
         z_start=data['z_start']
         z_end=data['z_end']
         updraft_velocity=data['updraft_velocity']
-        t_end=(z_end-z_start)/updraft_velocity
+        t_end=_parcel_end_time(z_start, z_end, updraft_velocity)
         trajectory_type='parcel'
 
     f = open(status_filename, 'w')
@@ -333,17 +388,17 @@ def restart_trajectory(trajectory_filename='trajectory_output.pkl',
             print('Restarting '+trajectory_filename+',', len(ParcelState_0.particles.spec_masses),'particles...', file=f)
             print('', file=f)
 
-    Ntimes = int((t_end - t_start)/dt + 1)
-    t_eval = np.linspace(t_start, t_end, Ntimes)
+    t_eval = _make_time_grid(t_start, t_end, dt)
     last_written=t_start
     runtime0 = time.time()
     counter=0
 
     for (t1,t2) in zip(t_eval[:-1],t_eval[1:]):
         steptime0 = time.time()
+        step_dt = t2 - t1
 
         ParcelState_Next = update_state(t1, t2,
-            ParcelState_0, processes, dt,
+            ParcelState_0, processes, step_dt,
             radius_scale=radius_scale,
             accom=accom, mechanism_data_path=mechanism_data_path,
             aq_reactions=aq_reactions, gas_reactions=gas_reactions,
@@ -353,7 +408,7 @@ def restart_trajectory(trajectory_filename='trajectory_output.pkl',
         if trajectory_type=='les':
             ParcelState_Next=air_from_les(
                 ParcelState_Next, processes, t2,
-                relaxation_time, dt, ParcelState_driver, 
+                relaxation_time, step_dt, ParcelState_driver,
                 rtol=1e-4, atol=1e-8)
 
         # adjust the number concentration based on the new temperature and pressure
@@ -410,7 +465,8 @@ def restart_trajectory(trajectory_filename='trajectory_output.pkl',
             last_written=t2
         
     # write final state
-    overwrite(t2, ParcelState_0, trajectory_filename, specdata_path=specdata_path)
+    if len(t_eval) > 1:
+        overwrite(t_end, ParcelState_0, trajectory_filename, specdata_path=specdata_path)
     f = open(status_filename, 'w')
     f.write('complete')
     f.close()
