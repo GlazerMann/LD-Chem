@@ -25,7 +25,12 @@ class Processes:
 
 @dataclass
 class Feedbacks:
+    # Historical names: these fields store water-mass changes accumulated over
+    # one model timestep (kg/m^3), not time derivatives. update_air() converts
+    # dwc_dt to kg/m^3/s before passing it to air_thermo.dstate_dt(), whose
+    # output is an instantaneous derivative.
     dwc_dt: float = 0.
+    # Corresponding vapor-water mass change over the same timestep (kg/m^3).
     dwv_dt: float = 0.
     # dwc_dt_next: float = 0.
     # dwc: float = 0. # change in water mass, kg water / m^3 air
@@ -162,44 +167,83 @@ def update_particle_population(
     
     return ParcelState_Next, feedbacks
 
-def update_air(t2, ParcelState_0, processes, feedbacks, dt, 
-               gas_reactions=None, rtol=1e-10, atol=1e-10):
+def update_air(
+    t2,
+    ParcelState_0,
+    processes,
+    feedbacks,
+    dt,
+    gas_reactions=None,
+    rtol=1e-10,
+    atol=1e-10,
+):
     
     T0 = ParcelState_0.T
     P0 = ParcelState_0.P
-    S0 = ParcelState_0.S # put this into gas mixture?   
+    S0 = ParcelState_0.S
     z0 = ParcelState_0.z
-    wv0 = air_thermo.S_to_wv(S0,T0,P0) # kg/kg
+    wv0 = air_thermo.S_to_wv(S0, T0, P0)
     
-    dz_dt=0
-    dT_dt=0
-    dP_dt=0
-    dS_dt=0
-    dwv_dt=0
+    dz_dt = 0
+    dT_dt = 0
+    dP_dt = 0
+    dS_dt = 0
+    dwv_dt = 0
     ParcelState_Next = ParcelState_0.clone_detached()
 
     if processes.condensation:
-        state0 = np.array([z0,T0,P0,S0,wv0])
+        state0 = np.array([z0, T0, P0, S0, wv0])
+
         if ParcelState_0.w:
-            rhs = lambda t, state: air_thermo.dstate_dt(state, ParcelState_0.w, feedbacks.dwc_dt)
-            ode15s = ode(rhs).set_integrator('lsoda', method='bdf', rtol=rtol, atol=atol, nsteps=5000)
+            if dt <= 0:
+                raise ValueError(
+                    "dt must be positive when condensation feedback is enabled"
+                )
+
+            # feedbacks.dwc_dt is the water-mass change produced by the
+            # particle update of this same simulation interval (kg/m^3).
+            # air_thermo.dstate_dt() requires a rate (kg/m^3/s).
+            condensed_water_rate = feedbacks.dwc_dt / dt
+
+            rhs = lambda t, state: air_thermo.dstate_dt(
+                state,
+                ParcelState_0.w,
+                condensed_water_rate,
+            )
+
+            ode15s = ode(rhs).set_integrator(
+                "lsoda",
+                method="bdf",
+                rtol=rtol,
+                atol=atol,
+                nsteps=5000,
+            )
             ode15s.set_initial_value(state0, 0.0)
-            state_next = ode15s.integrate(ode15s.t+dt)
+            state_next = ode15s.integrate(ode15s.t + dt)
+
             ParcelState_Next.z = state_next[0]
             ParcelState_Next.T = state_next[1]
             ParcelState_Next.P = state_next[2]
             ParcelState_Next.S = state_next[3]
-            ParcelState_Next.wv = state_next[4] 
+            ParcelState_Next.wv = state_next[4]
+
         else:
             # assumes that pressure is constant over time step
-            X0 = (S0*water_uptake.es(T0-273.15))/(c.R*T0) # mol/m^3
-            X_next = X0 + (feedbacks.dwv_dt/c.Mw) # change in water vapor moles, mol/m^3
-            Ph2o_next = X_next*c.R*T0
-            dT_dt = -1.0*(c.L/c.Cp)*feedbacks.dwv_dt
-            S_next = Ph2o_next/water_uptake.es((T0+dT_dt)-273.15)
-            ParcelState_Next.T = T0+dT_dt
+            X0 = (S0 * water_uptake.es(T0 - 273.15)) / (c.R * T0)
+            X_next = X0 + (feedbacks.dwv_dt / c.Mw)
+            Ph2o_next = X_next * c.R * T0
+            # Feedback is kg/m^3, but Cp is per kg of air.
+            _, rho_air, _ = air_thermo.compute_thermo_props(T0, P0, S0)
+            dT_dt = -1.0 * (c.L / c.Cp) * (feedbacks.dwv_dt / rho_air)
+            S_next = Ph2o_next / water_uptake.es((T0 + dT_dt) - 273.15)
+
+            ParcelState_Next.T = T0 + dT_dt
             ParcelState_Next.S = S_next
-            ParcelState_Next.wv = air_thermo.S_to_wv(S_next, T0+dT_dt, P0)
+            ParcelState_Next.wv = air_thermo.S_to_wv(
+                S_next,
+                T0 + dT_dt,
+                P0,
+            )
     
     if processes.cocondensation:
         if ParcelState_Next.gas:
@@ -210,16 +254,20 @@ def update_air(t2, ParcelState_0, processes, feedbacks, dt,
                 ParcelState_Next.gas.concs[TraceGas_idx] += dppb_dt
     
     if processes.gas_chemistry:
-        P = ParcelState_0.P
-        T = ParcelState_0.T
-        S = ParcelState_0.S
+        # Particle feedback and air thermodynamics precede gas chemistry.
+        # Retain an immediate input snapshot for the chemistry-only budget.
+        chemistry_input = ParcelState_Next.clone_detached()
+        P = chemistry_input.P
+        T = chemistry_input.T
+        S = chemistry_input.S
 
         # set up the initial gas concentrations
-        X0 = (ParcelState_0.gas.concs*1e-9*P)/(c.R*T) # mol/m^3
+        X0 = (chemistry_input.gas.concs*1e-9*P)/(c.R*T) # mol/m^3
         gas_names = Dict.empty(key_type=types.unicode_type, value_type=types.int32)
-        for ii, (gas) in enumerate(ParcelState_0.gas.gases):
+        for ii, (gas) in enumerate(chemistry_input.gas.gases):
             gas_names[gas.name]=ii
-        X0=np.append(X0, air_thermo.H2O_gas_conc(S,T,P))
+        initial_water = air_thermo.H2O_gas_conc(S, T, P)
+        X0=np.append(X0, initial_water)
         gas_names['H2O']=ii+1
         X0=np.append(X0, P/(c.R*T))
         gas_names['M']=ii+2
@@ -254,10 +302,16 @@ def update_air(t2, ParcelState_0, processes, feedbacks, dt,
          
         # convert to ppb
         ParcelState_Next.gas.concs=X_next[:-2]*1e9*((c.R*T)/P)
-        ParcelState_Next.S = (X_next[-2]*c.R*T)/water_uptake.es(T-273.15) # S change from chemistry
-        
-        # do mass balance
-        check_gas_chemistry(ParcelState_0, ParcelState_Next)
+        # Apply only chemistry's water change. An identity mechanism must
+        # preserve the humidity and prognostic vapor feedback already applied.
+        water_change = X_next[-2] - initial_water
+        ParcelState_Next.S = S + water_change*c.R*T/water_uptake.es(T-273.15)
+        if water_change != 0.0:
+            ParcelState_Next.wv = air_thermo.S_to_wv(ParcelState_Next.S, T, P)
+
+        # Compare against the immediate chemistry input, excluding earlier
+        # condensation, heating, and gas/particle transfer from this budget.
+        check_gas_chemistry(chemistry_input, ParcelState_Next)
 
     return ParcelState_Next
 
