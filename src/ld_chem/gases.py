@@ -7,6 +7,8 @@ Created on Fri Sep 27 13:39:14 2024
 """
 from dataclasses import dataclass
 from typing import Tuple
+from pathlib import Path
+import math
 import numpy as np
 import sys
 
@@ -50,18 +52,62 @@ class TraceGasPopulation:
         )  
 
 def retrieve_gas_species(name, specdata_path='../species_data/'):
-    gas_datafile = specdata_path + 'gas_data.dat'
-    with open(gas_datafile) as data_file:
-        for line in data_file:
-            if name == line.split()[0]:
-                name_in_file,alpha,molar_mass,H0,H_exp = line.split()
-    
-    return GasSpecies(
-        name=name,
-        alpha=float(alpha),
-        molar_mass=float(molar_mass.replace('d','e')),
-        H0=float(H0.replace('d','e')),
-        H_exp=float(H_exp.replace('d','e')))
+    gas_datafile = Path(specdata_path) / "gas_data.dat"
+    matched_species = None
+    matched_line_number = None
+
+    with gas_datafile.open(encoding="utf-8") as data_file:
+        for line_number, line in enumerate(data_file, start=1):
+            fields = line.split()
+            if not fields or fields[0] != name:
+                continue
+            if len(fields) != 5:
+                raise ValueError(
+                    f"Malformed gas species entry for '{name}' in "
+                    f"{gas_datafile} at line {line_number}: expected 5 fields, "
+                    f"found {len(fields)}."
+                )
+            if matched_species is not None:
+                raise ValueError(
+                    f"Duplicate gas species entry for '{name}' in "
+                    f"{gas_datafile}: lines {matched_line_number} and "
+                    f"{line_number}."
+                )
+
+            _, alpha, molar_mass, H0, H_exp = fields
+            try:
+                numeric_values = {
+                    "alpha": float(alpha.replace("D", "E").replace("d", "e")),
+                    "molar_mass": float(
+                        molar_mass.replace("D", "E").replace("d", "e")
+                    ),
+                    "H0": float(H0.replace("D", "E").replace("d", "e")),
+                    "H_exp": float(H_exp.replace("D", "E").replace("d", "e")),
+                }
+                if not all(math.isfinite(value) for value in numeric_values.values()):
+                    raise ValueError("values must be finite")
+                if not 0 <= numeric_values["alpha"] <= 1:
+                    raise ValueError("alpha must be in [0, 1]")
+                if numeric_values["molar_mass"] <= 0:
+                    raise ValueError("molar_mass must be > 0")
+                matched_species = GasSpecies(
+                    name=name,
+                    **numeric_values,
+                )
+            except ValueError as exc:
+                raise ValueError(
+                    f"Invalid numeric value in gas species '{name}' at "
+                    f"{gas_datafile}:{line_number}."
+                ) from exc
+            matched_line_number = line_number
+
+    if matched_species is not None:
+        return matched_species
+
+    raise ValueError(
+        f"Unknown gas species '{name}': no matching entry found in "
+        f"{gas_datafile}. Add it to the species data file or check for "
+        f"a typo in gas_names.")
 
 
 def equilibrate_gases(aerosol_population,TraceGas_population,T,P):

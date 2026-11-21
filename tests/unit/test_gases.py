@@ -124,6 +124,28 @@ def test_retrieve_gas_species():
     gas_o3 = retrieve_gas_species("O3", specdata_path=str(species_data_path) + "/")
     assert gas_o3.name == "O3"
 
+def test_retrieve_gas_species_unknown_species(tmp_path):
+    (tmp_path / "gas_data.dat").write_text(
+        "\nSO2 0.11 0.064 1.4 2900\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Unknown gas species 'NOPE'"):
+        retrieve_gas_species("NOPE", specdata_path=str(tmp_path) + "/")
+
+
+def test_retrieve_gas_species_reports_malformed_matching_row(tmp_path):
+    (tmp_path / "gas_data.dat").write_text(
+        "SO2 0.11 0.064\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"Malformed gas species entry.*line 1.*expected 5 fields",
+    ):
+        retrieve_gas_species("SO2", specdata_path=str(tmp_path) + "/")
+
 
 def test_make_trace_gas_population():
     """Test creation of TraceGasPopulation from names and concentrations."""
