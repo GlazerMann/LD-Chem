@@ -22,7 +22,7 @@ def _numpy():
     return np
 
 
-def build_aerosol_population() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def build_aerosol_population() -> tuple[np.ndarray, np.ndarray, np.ndarray, tuple[Any, ...]]:
     """Build a simple two-mode aerosol population for the trajectory case."""
     np = _numpy()
     from part2pop.population import build_population
@@ -43,7 +43,12 @@ def build_aerosol_population() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     aero_spec_names = np.array([species.name for species in aerosol_population.species])
     aero_spec_masses = np.array(aerosol_population.spec_masses)
     num_concs = np.array(aerosol_population.num_concs)
-    return aero_spec_names, aero_spec_masses, num_concs
+    return (
+        aero_spec_names,
+        aero_spec_masses,
+        num_concs,
+        tuple(aerosol_population.species),
+    )
 
 
 def build_trajectory() -> dict[str, np.ndarray | dict[str, np.ndarray]]:
@@ -133,7 +138,12 @@ def run_case(output_dir: Path) -> Path:
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    aero_spec_names, aero_spec_masses, num_concs = build_aerosol_population()
+    (
+        aero_spec_names,
+        aero_spec_masses,
+        num_concs,
+        aero_species,
+    ) = build_aerosol_population()
     pHs = np.full(num_concs.shape[0], 4.5)
     trajectory_data = build_trajectory()
 
@@ -157,6 +167,7 @@ def run_case(output_dir: Path) -> Path:
         print_to_screen=True,
         cocondensation=False,
         relaxation_time=25.0,
+        aero_species=aero_species,
     )
 
     return output_filename

@@ -66,6 +66,7 @@ pop = build_population(pop_cfg)
 aero_spec_names = np.array([species.name for species in pop.species])
 aero_spec_masses = np.array(pop.spec_masses)
 num_concs = np.array(pop.num_concs)
+aero_species = tuple(pop.species)
 pHs = np.full(num_concs.shape[0], 4.5)
 
 simulate_parcel(
@@ -74,9 +75,38 @@ simulate_parcel(
     S0=0.85, P0=101325.0, T0=298.0, radius_scale='log',
     gas_names=None, gas_concs=None, condensation = True, 
     cocondensation = False, aq_chemistry = None, 
-    gas_chemistry = False, output_filename='trajectory.pkl')
+    gas_chemistry = False, aero_species=aero_species,
+    output_filename='trajectory.pkl')
 
 ```
+
+When the initial aerosol population comes from `part2pop`, pass the same
+`pop.species` sequence through `aero_species`. Names must be unique, and their
+ordering must exactly match the mass-array columns. The definitions must come
+from the same population that produced those masses.
+
+For particulate initial species, LD-Chem preserves the supplied density and
+hygroscopicity (`kappa`). These are the properties part2pop used to determine
+dry particle volume and effective kappa. LD-Chem deliberately keeps molar mass
+from its own species definitions so fixing the particle handoff does not also
+change aqueous-chemistry or gas/particle conversion semantics. LD-Chem also
+retains its existing surface-tension default (`0.072 N/m`); part2pop's
+per-species surface-tension value is not imported because its current particle
+implementation does not consistently consume it. H2O and LD-Chem species with
+zero reference density likewise keep their complete LD-Chem
+definitions; H2O is re-equilibrated at the scenario's initial saturation ratio
+and temperature.
+
+Supplying `aero_species` does not expand LD-Chem's accepted species namespace.
+Each initial name must still exist in the selected LD-Chem species data,
+preserving rejection of typos and unsupported species. part2pop aliases are safe
+when its builder resolves them to an LD-Chem name first (for example, `org`
+becomes `OC`). Species LD-Chem adds during chemistry or cocondensation continue
+to come from LD-Chem's local species data.
+
+The handoff therefore preserves the dry-particle interpretation established by
+part2pop; it does not preserve arbitrary incoming wet state or override
+LD-Chem's molar-mass definitions or surface-tension default.
 
 ### Analyze and plot results
 ```python
@@ -189,9 +219,24 @@ There are two ways to define custom aqueous- or gas-phase chemical mechanisms:
 **Option 1: Edit the default mechanism files**
 
 Modify the default mechanism files in `src/ld_chem/mechanisms/`:
-1. Edit `aq_reactions.dat` and/or `gas_reactions.dat` directly
-2. Add or remove reactions and assign them to group names
-3. Include the group names in a list assigned to the `aq_chemistry` and/or `gas_chemistry` arguments when running a simulation
+1. Edit `aq_reactions.dat` and/or `gas_reactions.dat` directly.
+2. For aqueous reactions, add or remove rows and assign them to group names.
+3. Select aqueous groups with `aq_chemistry`. Gas reactions have no group column; `gas_chemistry=True` enables all rows in the selected `gas_reactions.dat`.
+
+The scenario APIs perform this loading internally. Pass aqueous group names to
+`aq_chemistry` and use `gas_chemistry=True` to enable gas chemistry; do not pass
+objects returned by `make_AqReactions()` or `make_GasReactions()` to those
+scenario arguments.
+
+Direct calls to `make_GasReactions()` do not support a chemistry/group
+selector. Supplying a non-`None` `chemistry` argument raises
+`NotImplementedError`.
+
+`mechanism_data_path` is interpreted relative to the process working
+directory. From a source checkout at the repository root, the bundled mechanism
+directory is `src/ld_chem/mechanisms/`. Callers that use the reaction loaders
+directly should pass the mechanism directory explicitly instead of assuming
+that `"mechanisms/"` refers to the package's bundled data.
 
 **Option 2: Create custom mechanism files and specify the path**
 

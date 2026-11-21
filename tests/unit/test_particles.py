@@ -4,6 +4,56 @@ from pathlib import Path
 from ld_chem.particles import AerosolSpecies, retrieve_one_species
 
 
+def test_retrieve_one_species_unknown_species(tmp_path):
+    """Unknown aerosol species should raise a clear ValueError."""
+    (tmp_path / "aero_data.dat").write_text(
+        "\n"
+        "SO4 1800 2 0.096 0.65\n"
+        "OC 1200 1 0.200 0.10\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Unknown aerosol species 'NOPE'"):
+        retrieve_one_species(
+            "NOPE",
+            specdata_path=str(tmp_path) + "/",
+        )
+
+
+def test_retrieve_one_species_handles_blank_lines(tmp_path):
+    """Blank lines in aero_data.dat should be ignored safely."""
+    (tmp_path / "aero_data.dat").write_text(
+        "\n"
+        "\n"
+        "SO4 1800 2 0.096 0.65\n"
+        "\n",
+        encoding="utf-8",
+    )
+
+    species = retrieve_one_species(
+        "SO4",
+        specdata_path=str(tmp_path) + "/",
+    )
+
+    assert species.name == "SO4"
+    assert species.density == pytest.approx(1800.0)
+    assert species.molar_mass == pytest.approx(0.096)
+    assert species.kappa == pytest.approx(0.65)
+
+
+def test_retrieve_one_species_rejects_malformed_matching_row(tmp_path):
+    """A malformed matching species row should fail immediately."""
+    (tmp_path / "aero_data.dat").write_text(
+        "SO4 1800 2\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        retrieve_one_species(
+            "SO4",
+            specdata_path=str(tmp_path) + "/",
+        )
+
 def test_aerosol_species_creation():
     """Test AerosolSpecies dataclass creation."""
     species = AerosolSpecies(
